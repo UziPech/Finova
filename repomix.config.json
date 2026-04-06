@@ -1,0 +1,39 @@
+{
+  "output": {
+    "filePath": "repomix-output.md",
+    "style": "markdown",
+    "headerText": "# Finova — Contexto completo para agente\n\nGenerado automáticamente con repomix.\nUsar como contexto inicial para Gema o Claude Opus en Antigravity.\nNo editar manualmente — re-generar con: npm run ctx\n",
+    "removeComments": false,
+    "removeEmptyLines": false,
+    "showLineNumbers": true,
+    "copyToClipboard": false
+  },
+  "include": [
+    "apps/web/src/**/*.ts",
+    "apps/web/src/**/*.tsx",
+    "apps/api/functions/**/*.ts",
+    "packages/types/**/*.ts",
+    "supabase/migrations/**/*.sql",
+    "CLAUDE.md",
+    "PLAN_TAREA.md",
+    "package.json",
+    "apps/web/package.json"
+  ],
+  "ignore": {
+    "useGitignore": true,
+    "useDefaultPatterns": true,
+    "customPatterns": [
+      "node_modules/**",
+      "dist/**",
+      ".env*",
+      "repomix-output.md",
+      "**/*.test.ts",
+      "**/*.spec.ts",
+      "**/*.test.tsx",
+      "apps/api/.env"
+    ]
+  },
+  "security": {
+    "enableSecurityCheck": true
+  }
+}

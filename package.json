@@ -1,0 +1,18 @@
+{
+  "name": "finova-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=frontend",
+    "build": "npm run build --workspace=frontend",
+    "lint": "npm run lint --workspace=frontend",
+    "ctx": "repomix && echo '✦ Contexto de Finova generado → repomix-output.md'"
+  },
+  "devDependencies": {
+    "repomix": "^1.13.1"
+  }
+}
