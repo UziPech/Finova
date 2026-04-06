@@ -150,6 +150,7 @@ export function AuthForm() {
       minHeight: '100dvh',
       display: 'flex',
       flexDirection: 'row',
+      justifyContent: 'center',
       backgroundColor: '#0a0a0a',
       fontFamily: "'Inter', system-ui, -apple-system, sans-serif",
       color: '#fafafa',
@@ -163,6 +164,7 @@ export function AuthForm() {
         justifyContent: 'space-between',
         padding: 'clamp(24px, 5vw, 48px)',
         minHeight: '100dvh',
+        margin: '0 auto', /* Center on mobile/tablet */
       }}>
         {/* Logo */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>

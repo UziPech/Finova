@@ -38,6 +38,62 @@ export function DashboardView() {
     )
   }
 
+  if (ventures.length === 0) {
+    return (
+      <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px', minHeight: '80vh', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{
+          width: '80px',
+          height: '80px',
+          borderRadius: '20px',
+          backgroundColor: '#171717',
+          border: '1px solid #2a2a2a',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: '24px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+        }}>
+          <svg style={{ width: '32px', height: '32px', color: '#a3a3a3' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+          </svg>
+        </div>
+        <h1 style={{ fontSize: 'clamp(24px, 3vw, 28px)', fontWeight: 600, color: '#0a0a0a', letterSpacing: '-0.02em', margin: '0 0 12px 0', textAlign: 'center' }}>
+          Bienvenido a Finova
+        </h1>
+        <p style={{ fontSize: '15px', color: '#737373', maxWidth: '400px', textAlign: 'center', margin: '0 0 32px 0', lineHeight: 1.6 }}>
+          Aún no tienes ventures registrados. Comienza tu viaje financiero creando tu primer venture para empezar a monitorear tus transacciones.
+        </p>
+        <button
+          onClick={() => window.location.href = '/ventures'}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '12px 24px',
+            borderRadius: '12px',
+            backgroundColor: '#0a0a0a',
+            color: '#fafafa',
+            fontSize: '15px',
+            fontWeight: 500,
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#262626' }}
+          onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0a0a0a' }}
+          onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.98)' }}
+          onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+        >
+          <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          Crear tu primer venture
+        </button>
+      </div>
+    )
+  }
+
   const totalInvested = ventures.reduce((sum, v) => sum + v.invested, 0)
   const totalReturned = ventures.reduce((sum, v) => sum + v.returned, 0)
   const activeVentures = ventures.filter((v) => v.status === 'active')
@@ -114,3 +170,4 @@ export function DashboardView() {
     </div>
   )
 }
+

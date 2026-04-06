@@ -31,7 +31,7 @@ The content is organized as follows:
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
 - Only files matching these patterns are included: apps/web/src/**/*.ts, apps/web/src/**/*.tsx, apps/api/functions/**/*.ts, packages/types/**/*.ts, supabase/migrations/**/*.sql, CLAUDE.md, PLAN_TAREA.md, package.json, apps/web/package.json
-- Files matching these patterns are excluded: node_modules/**, dist/**, .env*, repomix-output.md, **/*.test.ts, **/*.spec.ts, **/*.test.tsx, apps/api/.env, node_modules, dist, .env, .next
+- Files matching these patterns are excluded: node_modules/**, dist/**, .env*, repomix-output.md, **/*.test.ts, **/*.spec.ts, **/*.test.tsx, apps/api/.env
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Line numbers have been added to the beginning of each line
@@ -88,429 +88,440 @@ package.json
  31: | **Transactions (Frontend)** | ✅ Listo | Form con toggle income/expense, file upload, delete |
  32: | **Settings (Frontend)** | ✅ Listo | WhatsApp API config + Keywords manager |
  33: | **Rate Limiting (Backend)** | ✅ Listo | Protección contra ataques DDoS en Edge Functions |
- 34: | **Limpieza de código** | ✅ Listo | Archivos huérfanos eliminados, 0 dead code |
- 35: 
- 36: ### 🔲 Pendiente
+ 34: | **Auth & Function Sync** | ✅ Listo | Inyección manual de `Authorization` header en hooks (resolve 401s) |
+ 35: | **Seguridad Webhook** | ✅ Listo | Verificación HMAC SHA-256 para mensajes de WhatsApp |
+ 36: | **Limpieza de código** | ✅ Listo | Archivos huérfanos eliminados y corrección de sintaxis en catches |
  37: 
- 38: | Módulo | Fase | Descripción |
- 39: |--------|------|-------------|
- 40: | **Testing E2E** | 1 | Verificar flujo completo auth → ventures → transacciones en local |
- 41: | **Deploy Vercel** | 1 | Configurar env vars y CI/CD desde `main` |
- 42: | **Hogar** | 2 | UI de gastos compartidos (tablas SQL ya creadas, sin frontend) |
- 43: | **Webhook Mercado Pago** | 3 | Ingreso automático de pagos en ventures |
- 44: | **Webhook Stripe** | 3 | Ingreso automático para clientes internacionales |
- 45: | **Storage bucket** | 1 | Crear bucket `evidence` en Supabase para evidencias de transacciones |
- 46: 
- 47: ---
+ 38: ### 🔲 Pendiente
+ 39: 
+ 40: | Módulo | Fase | Descripción |
+ 41: |--------|------|-------------|
+ 42: | **Testing E2E** | 1 | Verificar flujo completo auth → ventures → transacciones en local |
+ 43: | **Deploy Vercel** | 1 | Configurar env vars y CI/CD desde `main` |
+ 44: | **Hogar** | 2 | UI de gastos compartidos (tablas SQL ya creadas, sin frontend) |
+ 45: | **Webhook Mercado Pago** | 3 | Ingreso automático de pagos en ventures |
+ 46: | **Webhook Stripe** | 3 | Ingreso automático para clientes internacionales |
+ 47: | **Storage bucket** | 1 | Crear bucket `evidence` en Supabase para evidencias de transacciones |
  48: 
- 49: ## Módulos
+ 49: ---
  50: 
- 51: ### ✦ Ventures (MVP — Fase 1) ✅
+ 51: ## Módulos
  52: 
- 53: Panel de proyectos con ciclo financiero propio.
+ 53: ### ✦ Ventures (MVP — Fase 1) ✅
  54: 
- 55: Entidad `Venture`:
- 56: - `id`, `user_id`, `name`
- 57: - `type`: `software` | `physical` | `investment` | `mixed`
- 58: - `status`: `active` | `paused` | `closed` | `idea`
- 59: - `invested`: capital total invertido (numérico, MXN por defecto)
- 60: - `returned`: retorno total recibido
- 61: - `roi`: calculado en frontend — nunca persistido → `((returned - invested) / invested) * 100`
- 62: - `currency`: default `MXN`
- 63: - `start_date`, `end_date?`, `notes`
- 64: 
- 65: Entidad `Transaction`:
- 66: - `id`, `venture_id`, `user_id`
- 67: - `type`: `income` | `expense`
- 68: - `amount`, `description`, `date`
- 69: - `evidence_url?` — foto de transferencia o referencia (Supabase Storage)
- 70: 
- 71: ### ✦ Dashboard global (MVP — Fase 1) ✅
+ 55: Panel de proyectos con ciclo financiero propio.
+ 56: 
+ 57: Entidad `Venture`:
+ 58: - `id`, `user_id`, `name`
+ 59: - `type`: `software` | `physical` | `investment` | `mixed`
+ 60: - `status`: `active` | `paused` | `closed` | `idea`
+ 61: - `invested`: capital total invertido (numérico, MXN por defecto)
+ 62: - `returned`: retorno total recibido
+ 63: - `roi`: calculado en frontend — nunca persistido → `((returned - invested) / invested) * 100`
+ 64: - `currency`: default `MXN`
+ 65: - `start_date`, `end_date?`, `notes`
+ 66: 
+ 67: Entidad `Transaction`:
+ 68: - `id`, `venture_id`, `user_id`
+ 69: - `type`: `income` | `expense`
+ 70: - `amount`, `description`, `date`
+ 71: - `evidence_url?` — foto de transferencia o referencia (Supabase Storage)
  72: 
- 73: Vista de salud financiera general:
- 74: - Inversión total vs retorno total (all-time)
- 75: - ROI promedio de ventures activos
- 76: - Venture con mejor ROI
- 77: - Ventures en rojo (invertido > retornado)
- 78: - Flujo del mes actual (ingresos vs gastos)
- 79: - Historial mensual de ingresos (últimos 6 meses — Recharts)
- 80: 
- 81: ### ✦ Settings — WhatsApp + Keywords (MVP — Fase 1) ✅
+ 73: ### ✦ Dashboard global (MVP — Fase 1) ✅
+ 74: 
+ 75: Vista de salud financiera general:
+ 76: - Inversión total vs retorno total (all-time)
+ 77: - ROI promedio de ventures activos
+ 78: - Venture con mejor ROI
+ 79: - Ventures en rojo (invertido > retornado)
+ 80: - Flujo del mes actual (ingresos vs gastos)
+ 81: - Historial mensual de ingresos (últimos 6 meses — Recharts)
  82: 
- 83: - Config de API WhatsApp por usuario (token, phone_number_id, verify_token)
- 84: - Keywords para clasificación automática de transacciones vía WhatsApp
- 85: - Webhook endpoint para recibir mensajes de WhatsApp
- 86: 
- 87: ### ✦ Hogar (Fase 2 — tablas creadas, sin UI)
+ 83: ### ✦ Settings — WhatsApp + Keywords (MVP — Fase 1) ✅
+ 84: 
+ 85: - Config de API WhatsApp por usuario (token, phone_number_id, verify_token)
+ 86: - Keywords para clasificación automática de transacciones vía WhatsApp
+ 87: - Webhook endpoint para recibir mensajes de WhatsApp
  88: 
- 89: Gastos compartidos del hogar entre ambos usuarios.
- 90: - `HouseholdExpense`: gasto compartido con split configurable
- 91: - `Category`: categorías (renta, comida, servicios, etc.)
- 92: - `RecurringExpense`: gastos fijos mensuales
- 93: 
- 94: > **Regla:** No construir UI de Hogar en Fase 1. Solo existen las tablas SQL.
+ 89: ### ✦ Hogar (Fase 2 — tablas creadas, sin UI)
+ 90: 
+ 91: Gastos compartidos del hogar entre ambos usuarios.
+ 92: - `HouseholdExpense`: gasto compartido con split configurable
+ 93: - `Category`: categorías (renta, comida, servicios, etc.)
+ 94: - `RecurringExpense`: gastos fijos mensuales
  95: 
- 96: ### ✦ Integraciones (Fase 3)
- 97: - Webhook Mercado Pago → registra ingresos automáticamente en el venture correspondiente
- 98: - Webhook Stripe → mismo flujo para clientes internacionales
- 99: 
-100: ---
+ 96: > **Regla:** No construir UI de Hogar en Fase 1. Solo existen las tablas SQL.
+ 97: 
+ 98: ### ✦ Integraciones (Fase 3)
+ 99: - Webhook Mercado Pago → registra ingresos automáticamente en el venture correspondiente
+100: - Webhook Stripe → mismo flujo para clientes internacionales
 101: 
-102: ## Stack tecnológico
+102: ---
 103: 
-104: | Capa | Tecnología | Versión |
-105: |------|-----------|---------|
-106: | Frontend | React + TypeScript + Vite | React 19, Vite 8 |
-107: | Estilos | Tailwind CSS | v4 |
-108: | Estado global | Zustand | latest |
-109: | Charts | Recharts | latest |
-110: | Routing | React Router | v7 |
-111: | Backend | Supabase Edge Functions (Deno + TS) | — |
-112: | Base de datos | PostgreSQL vía Supabase | — |
-113: | Auth | Supabase Auth | — |
-114: | Storage | Supabase Storage | — |
-115: | Deploy frontend | Vercel (pendiente) | — |
-116: | Deploy backend | Supabase (managed) | — |
-117: | Package manager | npm workspaces | — |
-118: 
-119: ---
+104: ## Stack tecnológico
+105: 
+106: | Capa | Tecnología | Versión |
+107: |------|-----------|---------|
+108: | Frontend | React + TypeScript + Vite | React 19, Vite 8 |
+109: | Estilos | Tailwind CSS | v4 |
+110: | Estado global | Zustand | latest |
+111: | Charts | Recharts | latest |
+112: | Routing | React Router | v7 |
+113: | Backend | Supabase Edge Functions (Deno + TS) | — |
+114: | Base de datos | PostgreSQL vía Supabase | — |
+115: | Auth | Supabase Auth | — |
+116: | Storage | Supabase Storage | — |
+117: | Deploy frontend | Vercel (pendiente) | — |
+118: | Deploy backend | Supabase (managed) | — |
+119: | Package manager | npm workspaces | — |
 120: 
-121: ## Arquitectura — monorepo con Vertical Slice Design
+121: ---
 122: 
-123: ```
-124: finova/
-125: │
-126: ├── frontend/                        ← React SPA — deploy en Vercel
-127: │   ├── src/
-128: │   │   ├── app/                     ← Entrypoint, router, layout, protected route
-129: │   │   │   ├── Layout.tsx           ← Sidebar dark + TopBar glass + Outlet
-130: │   │   │   ├── ProtectedRoute.tsx   ← Auth guard con branded loading
-131: │   │   │   └── router.tsx           ← Todas las rutas
-132: │   │   │
-133: │   │   ├── features/                ← Vertical slices por dominio
-134: │   │   │   ├── auth/
-135: │   │   │   │   ├── components/AuthForm.tsx
-136: │   │   │   │   ├── hooks/useAuth.ts
-137: │   │   │   │   ├── store.ts
-138: │   │   │   │   └── types.ts
-139: │   │   │   │
-140: │   │   │   ├── ventures/
-141: │   │   │   │   ├── components/      ← VentureCard, VentureForm, VenturesList, VentureDetail
-142: │   │   │   │   ├── hooks/useVentures.ts
-143: │   │   │   │   ├── store.ts
-144: │   │   │   │   ├── utils.ts         ← calculateROI, breakEven, ventureHealth
-145: │   │   │   │   └── types.ts
-146: │   │   │   │
-147: │   │   │   ├── transactions/
-148: │   │   │   │   ├── components/TransactionForm.tsx
-149: │   │   │   │   ├── hooks/useTransactions.ts
-150: │   │   │   │   └── types.ts
-151: │   │   │   │
-152: │   │   │   ├── dashboard/
-153: │   │   │   │   └── components/      ← DashboardView, MetricCard, MonthlyChart, RedVentures
-154: │   │   │   │
-155: │   │   │   └── settings/
-156: │   │   │       └── components/      ← WhatsAppSettings, KeywordsManager
-157: │   │   │
-158: │   │   ├── pages/                   ← Shells: montan features, sin lógica
-159: │   │   │   ├── AuthPage.tsx
-160: │   │   │   ├── DashboardPage.tsx
-161: │   │   │   ├── VenturesPage.tsx
-162: │   │   │   ├── VentureDetailPage.tsx
-163: │   │   │   ├── SettingsWhatsAppPage.tsx
-164: │   │   │   └── SettingsKeywordsPage.tsx
-165: │   │   │
-166: │   │   └── shared/                  ← Utilidades y types (sin componentes UI activos)
-167: │   │       ├── lib/
-168: │   │       │   ├── supabase.ts      ← Cliente Supabase (solo anon key)
-169: │   │       │   ├── formatters.ts    ← formatCurrency, formatDate, formatROI
-170: │   │       │   └── constants.ts     ← Labels de tipos y estados
-171: │   │       └── types/
-172: │   │           └── index.ts         ← Re-exporta desde backend
-173: │   │
-174: │   ├── index.html
-175: │   ├── vite.config.ts
-176: │   ├── tsconfig.app.json           ← include: ["src", "../backend/_shared/types.ts"]
-177: │   ├── .env.example                 ← VITE_SUPABASE_URL + ANON_KEY
-178: │   └── package.json
-179: │
-180: ├── backend/                         ← Edge Functions — deploy en Supabase
-181: │   └── _shared/
-182: │       ├── types.ts                 ← FUENTE DE VERDAD de todos los tipos
-183: │       ├── cors.ts                  ← CORS helper
-184: │       ├── rateLimit.ts             ← Rate limiting por IP
-185: │       ├── supabaseAdmin.ts         ← service_role key — NUNCA en frontend
-186: │       └── whatsapp.ts              ← Utilidades para WhatsApp API
-187: │
-188: ├── supabase/
-189: │   ├── functions/                   ← Edge Functions desplegadas
-190: │   │   ├── ventures/index.ts
-191: │   │   ├── transactions/index.ts
-192: │   │   ├── keywords/index.ts
-193: │   │   ├── whatsapp-config/index.ts
-194: │   │   └── whatsapp-webhook/index.ts
-195: │   └── migrations/
-196: │       ├── 001_ventures.sql
-197: │       ├── 002_transactions.sql
-198: │       ├── 003_household_expenses.sql
-199: │       ├── 004_whatsapp_configs.sql
-200: │       └── 005_keywords.sql
-201: │
-202: ├── CLAUDE.md                        ← Este archivo
-203: ├── repomix.config.json              ← Genera contexto para agentes
-204: └── package.json                     ← Workspace root
-205: ```
-206: 
-207: ---
+123: ## Arquitectura — monorepo con Vertical Slice Design
+124: 
+125: ```
+126: finova/
+127: │
+128: ├── frontend/                        ← React SPA — deploy en Vercel
+129: │   ├── src/
+130: │   │   ├── app/                     ← Entrypoint, router, layout, protected route
+131: │   │   │   ├── Layout.tsx           ← Sidebar dark + TopBar glass + Outlet
+132: │   │   │   ├── ProtectedRoute.tsx   ← Auth guard con branded loading
+133: │   │   │   └── router.tsx           ← Todas las rutas
+134: │   │   │
+135: │   │   ├── features/                ← Vertical slices por dominio
+136: │   │   │   ├── auth/
+137: │   │   │   │   ├── components/AuthForm.tsx
+138: │   │   │   │   ├── hooks/useAuth.ts
+139: │   │   │   │   ├── store.ts
+140: │   │   │   │   └── types.ts
+141: │   │   │   │
+142: │   │   │   ├── ventures/
+143: │   │   │   │   ├── components/      ← VentureCard, VentureForm, VenturesList, VentureDetail
+144: │   │   │   │   ├── hooks/useVentures.ts
+145: │   │   │   │   ├── store.ts
+146: │   │   │   │   ├── utils.ts         ← calculateROI, breakEven, ventureHealth
+147: │   │   │   │   └── types.ts
+148: │   │   │   │
+149: │   │   │   ├── transactions/
+150: │   │   │   │   ├── components/TransactionForm.tsx
+151: │   │   │   │   ├── hooks/useTransactions.ts
+152: │   │   │   │   └── types.ts
+153: │   │   │   │
+154: │   │   │   ├── dashboard/
+155: │   │   │   │   └── components/      ← DashboardView, MetricCard, MonthlyChart, RedVentures
+156: │   │   │   │
+157: │   │   │   └── settings/
+158: │   │   │       └── components/      ← WhatsAppSettings, KeywordsManager
+159: │   │   │
+160: │   │   ├── pages/                   ← Shells: montan features, sin lógica
+161: │   │   │   ├── AuthPage.tsx
+162: │   │   │   ├── DashboardPage.tsx
+163: │   │   │   ├── VenturesPage.tsx
+164: │   │   │   ├── VentureDetailPage.tsx
+165: │   │   │   ├── SettingsWhatsAppPage.tsx
+166: │   │   │   └── SettingsKeywordsPage.tsx
+167: │   │   │
+168: │   │   └── shared/                  ← Utilidades y types (sin componentes UI activos)
+169: │   │       ├── lib/
+170: │   │       │   ├── supabase.ts      ← Cliente Supabase (solo anon key)
+171: │   │       │   ├── formatters.ts    ← formatCurrency, formatDate, formatROI
+172: │   │       │   └── constants.ts     ← Labels de tipos y estados
+173: │   │       └── types/
+174: │   │           └── index.ts         ← Re-exporta desde backend
+175: │   │
+176: │   ├── index.html
+177: │   ├── vite.config.ts
+178: │   ├── tsconfig.app.json           ← include: ["src", "../backend/_shared/types.ts"]
+179: │   ├── .env.example                 ← VITE_SUPABASE_URL + ANON_KEY
+180: │   └── package.json
+181: │
+182: ├── backend/                         ← Edge Functions — deploy en Supabase
+183: │   └── _shared/
+184: │       ├── types.ts                 ← FUENTE DE VERDAD de todos los tipos
+185: │       ├── cors.ts                  ← CORS helper
+186: │       ├── rateLimit.ts             ← Rate limiting por IP
+187: │       ├── supabaseAdmin.ts         ← service_role key — NUNCA en frontend
+188: │       └── whatsapp.ts              ← Utilidades para WhatsApp API
+189: │
+190: ├── supabase/
+191: │   ├── functions/                   ← Edge Functions desplegadas
+192: │   │   ├── ventures/index.ts
+193: │   │   ├── transactions/index.ts
+194: │   │   ├── keywords/index.ts
+195: │   │   ├── whatsapp-config/index.ts
+196: │   │   └── whatsapp-webhook/index.ts
+197: │   └── migrations/
+198: │       ├── 001_ventures.sql
+199: │       ├── 002_transactions.sql
+200: │       ├── 003_household_expenses.sql
+201: │       ├── 004_whatsapp_configs.sql
+202: │       └── 005_keywords.sql
+203: │
+204: ├── CLAUDE.md                        ← Este archivo
+205: ├── repomix.config.json              ← Genera contexto para agentes
+206: └── package.json                     ← Workspace root
+207: ```
 208: 
-209: ## Regla de importaciones — Vertical Slice
+209: ---
 210: 
-211: ```
-212: app → pages → features → shared
+211: ## Regla de importaciones — Vertical Slice
+212: 
 213: ```
-214: 
-215: **Nunca importar hacia arriba.** Un feature no importa de otro feature. Si hay lógica compartida, va a `shared/`.
+214: app → pages → features → shared
+215: ```
 216: 
-217: ```typescript
-218: // ✓ Correcto
-219: import { Venture } from '../types'          // dentro del mismo feature
-220: import { formatCurrency } from '@/shared/lib/formatters'
-221: 
-222: // ✗ Prohibido
-223: import { useVentures } from '@/features/ventures/hooks/useVentures'  // cross-feature
-224: ```
-225: 
-226: **Excepción permitida:** `dashboard/` puede importar `calculateROI` desde `ventures/utils.ts` porque dashboard es consumidor de métricas de ventures. No obstante, si más features lo necesitan, mover a `shared/lib/`.
+217: **Nunca importar hacia arriba.** Un feature no importa de otro feature. Si hay lógica compartida, va a `shared/`.
+218: 
+219: ```typescript
+220: // ✓ Correcto
+221: import { Venture } from '../types'          // dentro del mismo feature
+222: import { formatCurrency } from '@/shared/lib/formatters'
+223: 
+224: // ✗ Prohibido
+225: import { useVentures } from '@/features/ventures/hooks/useVentures'  // cross-feature
+226: ```
 227: 
-228: ---
+228: **Excepción permitida:** `dashboard/` puede importar `calculateROI` desde `ventures/utils.ts` porque dashboard es consumidor de métricas de ventures. No obstante, si más features lo necesitan, mover a `shared/lib/`.
 229: 
-230: ## Supabase — Schema completo
+230: ---
 231: 
-232: ### 001_ventures.sql
-233: ```sql
-234: create table ventures (
-235:   id uuid primary key default gen_random_uuid(),
-236:   user_id uuid references auth.users not null,
-237:   name text not null,
-238:   type text check (type in ('software','physical','investment','mixed')) not null,
-239:   status text check (status in ('active','paused','closed','idea')) default 'active',
-240:   invested numeric(12,2) default 0,
-241:   returned numeric(12,2) default 0,
-242:   currency text default 'MXN',
-243:   start_date date,
-244:   end_date date,
-245:   notes text,
-246:   created_at timestamptz default now(),
-247:   updated_at timestamptz default now()
-248: );
-249: 
-250: alter table ventures enable row level security;
+232: ## Supabase — Schema completo
+233: 
+234: ### 001_ventures.sql
+235: ```sql
+236: create table ventures (
+237:   id uuid primary key default gen_random_uuid(),
+238:   user_id uuid references auth.users not null,
+239:   name text not null,
+240:   type text check (type in ('software','physical','investment','mixed')) not null,
+241:   status text check (status in ('active','paused','closed','idea')) default 'active',
+242:   invested numeric(12,2) default 0,
+243:   returned numeric(12,2) default 0,
+244:   currency text default 'MXN',
+245:   start_date date,
+246:   end_date date,
+247:   notes text,
+248:   created_at timestamptz default now(),
+249:   updated_at timestamptz default now()
+250: );
 251: 
-252: create policy "usuarios ven solo sus ventures"
-253:   on ventures for all
-254:   using (auth.uid() = user_id)
-255:   with check (auth.uid() = user_id);
-256: ```
-257: 
-258: ### 002_transactions.sql
-259: ```sql
-260: create table transactions (
-261:   id uuid primary key default gen_random_uuid(),
-262:   venture_id uuid references ventures(id) on delete cascade not null,
-263:   user_id uuid references auth.users not null,
-264:   type text check (type in ('income','expense')) not null,
-265:   amount numeric(12,2) not null check (amount > 0),
-266:   description text,
-267:   date date not null,
-268:   evidence_url text,
-269:   created_at timestamptz default now()
-270: );
-271: 
-272: alter table transactions enable row level security;
+252: alter table ventures enable row level security;
+253: 
+254: create policy "usuarios ven solo sus ventures"
+255:   on ventures for all
+256:   using (auth.uid() = user_id)
+257:   with check (auth.uid() = user_id);
+258: ```
+259: 
+260: ### 002_transactions.sql
+261: ```sql
+262: create table transactions (
+263:   id uuid primary key default gen_random_uuid(),
+264:   venture_id uuid references ventures(id) on delete cascade not null,
+265:   user_id uuid references auth.users not null,
+266:   type text check (type in ('income','expense')) not null,
+267:   amount numeric(12,2) not null check (amount > 0),
+268:   description text,
+269:   date date not null,
+270:   evidence_url text,
+271:   created_at timestamptz default now()
+272: );
 273: 
-274: create policy "usuarios ven solo sus transacciones"
-275:   on transactions for all
-276:   using (auth.uid() = user_id)
-277:   with check (auth.uid() = user_id);
-278: ```
-279: 
-280: ### 003_household_expenses.sql (Fase 2 — solo schema)
-281: ```sql
-282: create table household_expenses (
-283:   id uuid primary key default gen_random_uuid(),
-284:   created_by uuid references auth.users not null,
-285:   amount numeric(12,2) not null,
-286:   category text,
-287:   description text,
-288:   split_ratio numeric(3,2) default 0.50 check (split_ratio between 0 and 1),
-289:   date date not null,
-290:   created_at timestamptz default now()
-291: );
-292: ```
-293: 
-294: ### 004_whatsapp_configs.sql
-295: ```sql
-296: create table whatsapp_configs (
-297:   id uuid primary key default gen_random_uuid(),
-298:   user_id uuid references auth.users not null unique,
-299:   access_token text not null,
-300:   phone_number_id text not null,
-301:   verify_token text not null,
-302:   created_at timestamptz default now(),
-303:   updated_at timestamptz default now()
-304: );
-305: ```
-306: 
-307: ### 005_keywords.sql
-308: ```sql
-309: create table keywords (
-310:   id uuid primary key default gen_random_uuid(),
-311:   user_id uuid references auth.users not null,
-312:   keyword text not null,
-313:   type text check (type in ('income','expense')) not null,
-314:   venture_id uuid references ventures(id) on delete set null,
-315:   created_at timestamptz default now()
-316: );
-317: ```
-318: 
-319: ---
+274: alter table transactions enable row level security;
+275: 
+276: create policy "usuarios ven solo sus transacciones"
+277:   on transactions for all
+278:   using (auth.uid() = user_id)
+279:   with check (auth.uid() = user_id);
+280: ```
+281: 
+282: ### 003_household_expenses.sql (Fase 2 — solo schema)
+283: ```sql
+284: create table household_expenses (
+285:   id uuid primary key default gen_random_uuid(),
+286:   created_by uuid references auth.users not null,
+287:   amount numeric(12,2) not null,
+288:   category text,
+289:   description text,
+290:   split_ratio numeric(3,2) default 0.50 check (split_ratio between 0 and 1),
+291:   date date not null,
+292:   created_at timestamptz default now()
+293: );
+294: ```
+295: 
+296: ### 004_whatsapp_configs.sql
+297: ```sql
+298: create table whatsapp_configs (
+299:   id uuid primary key default gen_random_uuid(),
+300:   user_id uuid references auth.users not null unique,
+301:   access_token text not null,
+302:   phone_number_id text not null,
+303:   verify_token text not null,
+304:   created_at timestamptz default now(),
+305:   updated_at timestamptz default now()
+306: );
+307: ```
+308: 
+309: ### 005_keywords.sql
+310: ```sql
+311: create table keywords (
+312:   id uuid primary key default gen_random_uuid(),
+313:   user_id uuid references auth.users not null,
+314:   keyword text not null,
+315:   type text check (type in ('income','expense')) not null,
+316:   venture_id uuid references ventures(id) on delete set null,
+317:   created_at timestamptz default now()
+318: );
+319: ```
 320: 
-321: ## Variables de entorno
+321: ---
 322: 
-323: | Variable | Ubicación | Acceso |
-324: |----------|-----------|--------|
-325: | `VITE_SUPABASE_URL` | `frontend/.env` | Frontend — pública, protegida por RLS |
-326: | `VITE_SUPABASE_ANON_KEY` | `frontend/.env` | Frontend — pública, protegida por RLS |
-327: | `SUPABASE_URL` | Supabase secrets | Edge Functions únicamente |
-328: | `SUPABASE_SERVICE_ROLE_KEY` | Supabase secrets | Edge Functions únicamente — **NUNCA en frontend** |
-329: 
-330: > El `service_role_key` bypasea RLS. Si llega al frontend, cualquier usuario puede leer todos los datos.
+323: ## Variables de entorno
+324: 
+325: | Variable | Ubicación | Acceso |
+326: |----------|-----------|--------|
+327: | `VITE_SUPABASE_URL` | `frontend/.env` | Frontend — pública, protegida por RLS |
+328: | `VITE_SUPABASE_ANON_KEY` | `frontend/.env` | Frontend — pública, protegida por RLS |
+329: | `SUPABASE_URL` | Supabase secrets | Edge Functions únicamente |
+330: | `SUPABASE_SERVICE_ROLE_KEY` | Supabase secrets | Edge Functions únicamente — **NUNCA en frontend** |
 331: 
-332: ---
+332: > El `service_role_key` bypasea RLS. Si llega al frontend, cualquier usuario puede leer todos los datos.
 333: 
-334: ## Cálculos de negocio
+334: ---
 335: 
-336: ```typescript
-337: // features/ventures/utils.ts — NUNCA persistir en DB
-338: 
-339: export const calculateROI = (invested: number, returned: number): number => {
-340:   if (invested === 0) return 0
-341:   return Number(((returned - invested) / invested * 100).toFixed(2))
-342: }
-343: 
-344: export const breakEven = (invested: number, returned: number): number => {
-345:   return Math.max(0, invested - returned)
-346: }
-347: 
-348: export type VentureHealth = 'positive' | 'neutral' | 'negative'
-349: export const ventureHealth = (roi: number): VentureHealth => {
-350:   if (roi > 0) return 'positive'
-351:   if (roi === 0) return 'neutral'
-352:   return 'negative'
-353: }
-354: ```
-355: 
-356: ---
+336: ## Cálculos de negocio
+337: 
+338: ```typescript
+339: // features/ventures/utils.ts — NUNCA persistir en DB
+340: 
+341: export const calculateROI = (invested: number, returned: number): number => {
+342:   if (invested === 0) return 0
+343:   return Number(((returned - invested) / invested * 100).toFixed(2))
+344: }
+345: 
+346: export const breakEven = (invested: number, returned: number): number => {
+347:   return Math.max(0, invested - returned)
+348: }
+349: 
+350: export type VentureHealth = 'positive' | 'neutral' | 'negative'
+351: export const ventureHealth = (roi: number): VentureHealth => {
+352:   if (roi > 0) return 'positive'
+353:   if (roi === 0) return 'neutral'
+354:   return 'negative'
+355: }
+356: ```
 357: 
-358: ## Reglas del agente
+358: ---
 359: 
-360: 1. Leer `CLAUDE.md` completo antes de cualquier acción
-361: 2. Correr `npm run ctx` para obtener contexto actualizado del código
-362: 3. No crear UI de Hogar en Fase 1
-363: 4. ROI nunca se persiste — solo se calcula en frontend (`ventures/utils.ts`)
-364: 5. Cada cambio a DB requiere su migration SQL versionada
-365: 6. No usar `any` en TypeScript
-366: 7. `service_role_key` nunca en `frontend/`
-367: 8. Un feature = un commit atómico
-368: 9. Nunca importar una feature desde otra feature — usar `shared/` si hay lógica común
-369: 10. Tipos de dominio solo en `backend/_shared/types.ts`
-370: 11. `pages/` son shells: sin lógica propia, solo montan features
-371: 12. Cada feature tiene su propio `store.ts` de Zustand — sin store global
-372: 13. Todas las peticiones al backend van via `VITE_SUPABASE_URL/functions/v1/{edge-function}`
-373: 14. JWT de Supabase se incluye en `Authorization: Bearer` en todas las peticiones
-374: 
-375: ---
-376: 
-377: ## Comandos
-378: 
-379: ```bash
-380: # Frontend
-381: npm run dev          # Levanta frontend en desarrollo (Vite)
-382: npm run build        # Build de producción (tsc + vite build)
-383: npm run lint         # ESLint en todo el monorepo
-384: npm run ctx          # Genera repomix-output.md para agentes
-385: 
-386: # Supabase
-387: npx supabase start   # DB local para desarrollo
-388: npx supabase db push # Aplica migrations a Supabase producción
-389: npx supabase functions deploy <name>  # Despliega Edge Function
-390: ```
-391: 
-392: ---
-393: 
-394: ## Checklist MVP — Fase 1
-395: 
-396: ### Setup base
-397: - [x] Monorepo con npm workspaces
-398: - [x] `frontend` — Vite + React + TypeScript
-399: - [x] Tailwind CSS v4
-400: - [x] Path aliases configurados (`@/` → `src/`, `@backend/` → `../backend/`)
-401: - [x] repomix + script `ctx`
-402: - [x] `.gitignore` — bloquea todos los `.env`
-403: - [x] Limpieza de archivos Vite default (App.css, svgs, hero.png)
-404: - [x] Limpieza de MockData y shared/ui no usados
+360: ## Reglas del agente
+361: 
+362: 1. Leer `CLAUDE.md` completo antes de cualquier acción
+363: 2. Correr `npm run ctx` para obtener contexto actualizado del código
+364: 3. No crear UI de Hogar en Fase 1
+365: 4. ROI nunca se persiste — solo se calcula en frontend (`ventures/utils.ts`)
+366: 5. Cada cambio a DB requiere su migration SQL versionada
+367: 6. No usar `any` en TypeScript
+368: 7. `service_role_key` nunca en `frontend/`
+369: 8. Un feature = un commit atómico
+370: 9. Nunca importar una feature desde otra feature — usar `shared/` si hay lógica común
+371: 10. Tipos de dominio solo en `backend/_shared/types.ts`
+372: 11. `pages/` son shells: sin lógica propia, solo montan features
+373: 12. Cada feature tiene su propio `store.ts` de Zustand — sin store global
+374: 13. Todas las peticiones al backend van via `VITE_SUPABASE_URL/functions/v1/{edge-function}`
+375: 14. **Crucial:** El JWT de Supabase debe incluirse **manualmente** en `Authorization: Bearer` dentro de las llamadas a `supabase.functions.invoke`, ya que el SDK no lo persiste automáticamente en este método.
+376: 15. Seguridad WhatsApp: Webhooks usan HMAC signature verification (Meta standard).
+377: 
+378: ---
+379: 
+380: ## Comandos
+381: 
+382: ```bash
+383: # Frontend
+384: npm run dev          # Levanta frontend en desarrollo (Vite)
+385: npm run build        # Build de producción (tsc + vite build)
+386: npm run lint         # ESLint en todo el monorepo
+387: npm run ctx          # Genera repomix-output.md para agentes
+388: 
+389: # Supabase
+390: npx supabase start   # DB local para desarrollo
+391: npx supabase db push # Aplica migrations a Supabase producción
+392: npx supabase functions deploy <name>  # Despliega Edge Function
+393: ```
+394: 
+395: ---
+396: 
+397: ## Desarrollo y DX (Developer Experience)
+398: 
+399: - **Editor (VS Code/Cursor):** Se requiere el uso del archivo `.vscode/settings.json` para habilitar el soporte de Deno exclusivamente en `backend/supabase/functions`, evitando errores de tipado falsos en el frontend.
+400: - **Extensiones recomendadas:** `denoland.vscode-deno`.
+401: 
+402: ---
+403: 
+404: ## Checklist MVP — Fase 1
 405: 
-406: ### Supabase
-407: - [x] Proyecto creado en Supabase
-408: - [x] Migration 001 aplicada (ventures + RLS)
-409: - [x] Migration 002 aplicada (transactions + RLS)
-410: - [x] Migration 003 aplicada (household_expenses — solo tabla)
-411: - [x] Migration 004 aplicada (whatsapp_configs + RLS)
-412: - [x] Migration 005 aplicada (keywords + RLS)
-413: - [x] Edge Functions desplegadas (ventures, transactions, keywords, whatsapp-config, whatsapp-webhook)
-414: - [x] Rate limiting en Edge Functions
-415: - [ ] Supabase Storage bucket para evidencias
-416: - [x] RLS verificado
-417: 
-418: ### Auth
-419: - [x] Pantalla login / registro (monochrome split UI)
-420: - [x] Integración Google OAuth
-421: - [x] Protección de rutas (ProtectedRoute)
-422: - [x] Hook `useAuth` (Zustand + Supabase listener)
-423: - [x] Persistencia de sesión
-424: 
-425: ### Módulo Ventures
-426: - [x] Listado de ventures con ROI calculado
-427: - [x] Crear venture (form validado)
-428: - [x] Editar venture
-429: - [x] Detalle de venture con historial de transacciones
-430: - [x] Agregar transacción (income / expense)
-431: - [x] Upload de evidencia (form con file input)
-432: 
-433: ### Dashboard
-434: - [x] 4 métricas globales (cards con animación)
-435: - [x] Indicador ventures en rojo
-436: - [x] Flujo del mes (ingresos vs gastos)
-437: - [x] Historial mensual últimos 6 meses (Recharts bar chart)
-438: 
-439: ### Settings
-440: - [x] WhatsApp API config (token, phone_number_id, verify_token)
-441: - [x] Keywords manager (income/expense con venture opcional)
-442: 
-443: ### Deploy
-444: - [ ] Variables de entorno configuradas en Vercel
-445: - [ ] Deploy automático desde rama `main`
-446: 
-447: ---
-448: 
-449: ## Próximos pasos (por prioridad)
-450: 
-451: 1. **Refactorizar UI/UX** — Aplicar el nuevo diseño premium/monocromático a todos los módulos (Dashboard, Ventures, Settings)
-452: 2. **Testing local** — Levantar dev server, crear cuenta, probar flujo completo
-453: 3. **Storage bucket** — Crear bucket `evidence` en Supabase para evidence_url
-454: 4. **Deploy Vercel** — Configurar env vars + CI/CD
-455: 5. **Hogar (Fase 2)** — UI de gastos compartidos (esquema ya existe)
-456: 6. **Webhooks (Fase 3)** — Mercado Pago + Stripe
+406: ### Setup base
+407: - [x] Monorepo con npm workspaces
+408: - [x] `frontend` — Vite + React + TypeScript
+409: - [x] Tailwind CSS v4
+410: - [x] Path aliases configurados (`@/` → `src/`, `@backend/` → `../backend/`)
+411: - [x] repomix + script `ctx`
+412: - [x] `.gitignore` — bloquea todos los `.env`
+413: - [x] Limpieza de archivos Vite default (App.css, svgs, hero.png)
+414: - [x] Limpieza de MockData y shared/ui no usados
+415: - [x] Configuración `.vscode/settings.json` para Deno support
+416: 
+417: ### Supabase
+418: - [x] Proyecto creado en Supabase
+419: - [x] Migration 001 aplicada (ventures + RLS)
+420: - [x] Migration 002 aplicada (transactions + RLS)
+421: - [x] Migration 003 aplicada (household_expenses — solo tabla)
+422: - [x] Migration 004 aplicada (whatsapp_configs + RLS)
+423: - [x] Migration 005 aplicada (keywords + RLS)
+424: - [x] Edge Functions desplegadas (ventures, transactions, keywords, whatsapp-config, whatsapp-webhook)
+425: - [x] Rate limiting en Edge Functions
+426: - [ ] Supabase Storage bucket para evidencias
+427: - [x] RLS verificado
+428: - [x] Verificación HMAC para WhatsApp Webhook
+429: 
+430: ### Auth
+431: - [x] Pantalla login / registro (monochrome split UI)
+432: - [x] Integración Google OAuth
+433: - [x] Protección de rutas (ProtectedRoute)
+434: - [x] Hook `useAuth` (Zustand + Supabase listener)
+435: - [x] Persistencia de sesión
+436: - [x] Inyección de Authorization Header en `supabase.functions.invoke`
+437: 
+438: ### Módulo Ventures
+439: - [x] Listado de ventures con ROI calculado
+440: - [x] Crear venture (form validado)
+441: - [x] Editar venture
+442: - [x] Detalle de venture con historial de transacciones
+443: - [x] Agregar transacción (income / expense)
+444: - [x] Upload de evidencia (form con file input)
+445: 
+446: ### Dashboard
+447: - [x] 4 métricas globales (cards con animación)
+448: - [x] Indicador ventures en rojo
+449: - [x] Flujo del mes (ingresos vs gastos)
+450: - [x] Historial mensual últimos 6 meses (Recharts bar chart)
+451: 
+452: ### Settings
+453: - [x] WhatsApp API config (token, phone_number_id, verify_token)
+454: - [x] Keywords manager (income/expense con venture opcional)
+455: 
+456: ### Deploy
+457: - [ ] Variables de entorno configuradas en Vercel
+458: - [ ] Deploy automático desde rama `main`
+459: 
+460: ---
+461: 
+462: ## Próximos pasos (por prioridad)
+463: 
+464: 1. **Storage bucket** — Crear bucket `evidence` en Supabase para evidence_url
+465: 2. **Deploy Vercel** — Configurar env vars + CI/CD
+466: 3. **Hogar (Fase 2)** — UI de gastos compartidos (esquema ya existe)
+467: 4. **Webhooks (Fase 3)** — Mercado Pago + Stripe
 ````
 
 ## File: package.json

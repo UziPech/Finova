@@ -2,100 +2,91 @@
 import { useEffect, useCallback } from 'react'
 import { supabase } from '@/shared/lib/supabase'
 import { useVenturesStore } from '../store'
+import { useAuthStore } from '@/features/auth/store'
 import type { CreateVentureInput, UpdateVentureInput } from '../types'
 
 export function useVentures() {
-  const store = useVenturesStore()
+  const ventures = useVenturesStore((s) => s.ventures)
+  const loading = useVenturesStore((s) => s.loading)
+  const error = useVenturesStore((s) => s.error)
+  const setVentures = useVenturesStore((s) => s.setVentures)
+  const addVentureAction = useVenturesStore((s) => s.addVenture)
+  const updateVentureAction = useVenturesStore((s) => s.updateVenture)
+  const removeVentureAction = useVenturesStore((s) => s.removeVenture)
+  const setLoading = useVenturesStore((s) => s.setLoading)
+  const setError = useVenturesStore((s) => s.setError)
+
+  // Observar sesión del auth store para saber cuándo está lista
+  const session = useAuthStore((s) => s.session)
 
   const fetchVentures = useCallback(async () => {
-    store.setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return store.setError('No session')
+    setLoading(true)
+    setError(null)
 
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ventures`,
-      {
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-      }
-    )
-    const json = await res.json()
-    if (!res.ok) return store.setError(json.message || 'Error fetching ventures')
-    store.setVentures(json.data)
-  }, [store])
+    const headers = session?.access_token 
+      ? { Authorization: `Bearer ${session.access_token}` }
+      : undefined
 
+    const { data, error: invokeError } = await supabase.functions.invoke('ventures', {
+      method: 'GET',
+      headers,
+    })
+
+    if (invokeError) {
+      setError(invokeError.message || 'Error fetching ventures')
+      setLoading(false)
+      return
+    }
+    setVentures(data?.data ?? [])
+    setLoading(false)
+  }, [session, setLoading, setError, setVentures])
+
+  // Solo hacer fetch cuando la sesión esté disponible
   useEffect(() => {
-    fetchVentures()
-  }, [fetchVentures])
+    if (session?.access_token) {
+      fetchVentures()
+    }
+  }, [session?.access_token, fetchVentures])
 
   const createVenture = async (input: CreateVentureInput) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('No session')
+    const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
+    const { data, error } = await supabase.functions.invoke('ventures', {
+      method: 'POST',
+      body: input,
+      headers,
+    })
 
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ventures`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(input),
-      }
-    )
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.message || 'Error creating venture')
-    store.addVenture(json.data)
-    return json.data
+    if (error) throw new Error(error.message || 'Error creating venture')
+    addVentureAction(data.data)
+    return data.data
   }
 
   const updateVenture = async (id: string, input: Partial<UpdateVentureInput>) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('No session')
+    const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
+      method: 'PUT',
+      body: input,
+    })
 
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ventures/${id}`,
-      {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(input),
-      }
-    )
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.message || 'Error updating venture')
-    store.updateVenture(json.data)
-    return json.data
+    if (error) throw new Error(error.message || 'Error updating venture')
+    updateVentureAction(data.data)
+    return data.data
   }
 
   const deleteVenture = async (id: string) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('No session')
+    const { error } = await supabase.functions.invoke(`ventures/${id}`, {
+      method: 'DELETE',
+    })
 
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ventures/${id}`,
-      {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-        },
-      }
-    )
-    if (!res.ok) {
-      const json = await res.json()
-      throw new Error(json.message || 'Error deleting venture')
+    if (error) {
+      throw new Error(error.message || 'Error deleting venture')
     }
-    store.removeVenture(id)
+    removeVentureAction(id)
   }
 
   return {
-    ventures: store.ventures,
-    loading: store.loading,
-    error: store.error,
+    ventures,
+    loading,
+    error,
     fetchVentures,
     createVenture,
     updateVenture,

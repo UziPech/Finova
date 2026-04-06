@@ -29,14 +29,11 @@ export function KeywordsManager() {
 
   useEffect(() => {
     const fetchKeywords = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-settings/keywords`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      const { data, error } = await supabase.functions.invoke('user-settings/keywords', {
+        method: 'GET',
       })
-      if (res.ok) {
-        const json = await res.json()
-        setKeywords(json.data || [])
+      if (!error && data) {
+        setKeywords(data.data || [])
       }
       setLoading(false)
     }
@@ -46,28 +43,20 @@ export function KeywordsManager() {
   const addKeyword = async () => {
     if (!newKeyword.trim()) return
     setSaving(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { setSaving(false); return }
-
-    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-settings/keywords`, {
+    const { data, error } = await supabase.functions.invoke('user-settings/keywords', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keyword: newKeyword.trim().toLowerCase(), type: newType }),
+      body: { keyword: newKeyword.trim().toLowerCase(), type: newType },
     })
-    if (res.ok) {
-      const json = await res.json()
-      setKeywords((prev) => [...prev, json.data])
+    if (!error && data) {
+      setKeywords((prev) => [...prev, data.data])
       setNewKeyword('')
     }
     setSaving(false)
   }
 
   const removeKeyword = async (id: string) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-settings/keywords/${id}`, {
+    await supabase.functions.invoke(`user-settings/keywords/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${session.access_token}` },
     })
     setKeywords((prev) => prev.filter((k) => k.id !== id))
   }

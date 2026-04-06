@@ -31,7 +31,9 @@ Cada proyecto, negocio o cliente es una unidad con su propio ciclo de inversión
 | **Transactions (Frontend)** | ✅ Listo | Form con toggle income/expense, file upload, delete |
 | **Settings (Frontend)** | ✅ Listo | WhatsApp API config + Keywords manager |
 | **Rate Limiting (Backend)** | ✅ Listo | Protección contra ataques DDoS en Edge Functions |
-| **Limpieza de código** | ✅ Listo | Archivos huérfanos eliminados, 0 dead code |
+| **Auth & Function Sync** | ✅ Listo | Inyección manual de `Authorization` header en hooks (resolve 401s) |
+| **Seguridad Webhook** | ✅ Listo | Verificación HMAC SHA-256 para mensajes de WhatsApp |
+| **Limpieza de código** | ✅ Listo | Archivos huérfanos eliminados y corrección de sintaxis en catches |
 
 ### 🔲 Pendiente
 
@@ -370,7 +372,8 @@ export const ventureHealth = (roi: number): VentureHealth => {
 11. `pages/` son shells: sin lógica propia, solo montan features
 12. Cada feature tiene su propio `store.ts` de Zustand — sin store global
 13. Todas las peticiones al backend van via `VITE_SUPABASE_URL/functions/v1/{edge-function}`
-14. JWT de Supabase se incluye en `Authorization: Bearer` en todas las peticiones
+14. **Crucial:** El JWT de Supabase debe incluirse **manualmente** en `Authorization: Bearer` dentro de las llamadas a `supabase.functions.invoke`, ya que el SDK no lo persiste automáticamente en este método.
+15. Seguridad WhatsApp: Webhooks usan HMAC signature verification (Meta standard).
 
 ---
 
@@ -391,6 +394,13 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 
 ---
 
+## Desarrollo y DX (Developer Experience)
+
+- **Editor (VS Code/Cursor):** Se requiere el uso del archivo `.vscode/settings.json` para habilitar el soporte de Deno exclusivamente en `backend/supabase/functions`, evitando errores de tipado falsos en el frontend.
+- **Extensiones recomendadas:** `denoland.vscode-deno`.
+
+---
+
 ## Checklist MVP — Fase 1
 
 ### Setup base
@@ -402,6 +412,7 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 - [x] `.gitignore` — bloquea todos los `.env`
 - [x] Limpieza de archivos Vite default (App.css, svgs, hero.png)
 - [x] Limpieza de MockData y shared/ui no usados
+- [x] Configuración `.vscode/settings.json` para Deno support
 
 ### Supabase
 - [x] Proyecto creado en Supabase
@@ -414,6 +425,7 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 - [x] Rate limiting en Edge Functions
 - [ ] Supabase Storage bucket para evidencias
 - [x] RLS verificado
+- [x] Verificación HMAC para WhatsApp Webhook
 
 ### Auth
 - [x] Pantalla login / registro (monochrome split UI)
@@ -421,6 +433,7 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 - [x] Protección de rutas (ProtectedRoute)
 - [x] Hook `useAuth` (Zustand + Supabase listener)
 - [x] Persistencia de sesión
+- [x] Inyección de Authorization Header en `supabase.functions.invoke`
 
 ### Módulo Ventures
 - [x] Listado de ventures con ROI calculado
@@ -448,9 +461,7 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 
 ## Próximos pasos (por prioridad)
 
-1. **Refactorizar UI/UX** — Aplicar el nuevo diseño premium/monocromático a todos los módulos (Dashboard, Ventures, Settings)
-2. **Testing local** — Levantar dev server, crear cuenta, probar flujo completo
-3. **Storage bucket** — Crear bucket `evidence` en Supabase para evidence_url
-4. **Deploy Vercel** — Configurar env vars + CI/CD
-5. **Hogar (Fase 2)** — UI de gastos compartidos (esquema ya existe)
-6. **Webhooks (Fase 3)** — Mercado Pago + Stripe
+1. **Storage bucket** — Crear bucket `evidence` en Supabase para evidence_url
+2. **Deploy Vercel** — Configurar env vars + CI/CD
+3. **Hogar (Fase 2)** — UI de gastos compartidos (esquema ya existe)
+4. **Webhooks (Fase 3)** — Mercado Pago + Stripe

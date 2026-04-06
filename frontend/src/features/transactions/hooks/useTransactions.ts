@@ -2,36 +2,40 @@
 import { useState, useCallback } from 'react'
 import { supabase } from '@/shared/lib/supabase'
 import type { Transaction, CreateTransactionInput } from '../types'
+import { useAuthStore } from '@/features/auth/store'
 
 export function useTransactions(ventureId?: string) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const { session } = useAuthStore()
 
   const fetchTransactions = useCallback(async (vid?: string) => {
     const id = vid || ventureId
     setLoading(true)
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) { setError('No session'); setLoading(false); return }
+    setError(null)
 
-    const url = id
-      ? `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transactions?venture_id=${id}`
-      : `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transactions`
+    if (!session?.access_token) {
+      setError('No active session')
+      setLoading(false)
+      return
+    }
 
-    const res = await fetch(url, {
-      headers: { Authorization: `Bearer ${session.access_token}` },
+    const { data, error: invokeError } = await supabase.functions.invoke('transactions' + (id ? `?venture_id=${id}` : ''), {
+      method: 'GET',
+      headers: { Authorization: `Bearer ${session.access_token}` }
     })
-    const json = await res.json()
-    if (!res.ok) { setError(json.message); setLoading(false); return }
-    setTransactions(json.data)
+
+    if (invokeError) { setError(invokeError.message); setLoading(false); return }
+    setTransactions(data?.data ?? [])
     setLoading(false)
-  }, [ventureId])
+  }, [ventureId, session])
 
   const createTransaction = async (input: CreateTransactionInput, evidence?: File) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('No session')
+    if (!session?.access_token) throw new Error('No active session')
 
-    let res: Response
+    let responseData
+    let invokeError
 
     if (evidence) {
       const formData = new FormData()
@@ -42,48 +46,38 @@ export function useTransactions(ventureId?: string) {
       if (input.description) formData.append('description', input.description)
       formData.append('evidence', evidence)
 
-      res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transactions`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${session.access_token}` },
-          body: formData,
-        }
-      )
+      const { data, error } = await supabase.functions.invoke('transactions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: formData,
+      })
+      responseData = data
+      invokeError = error
     } else {
-      res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transactions`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(input),
-        }
-      )
+      const { data, error } = await supabase.functions.invoke('transactions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: input,
+      })
+      responseData = data
+      invokeError = error
     }
 
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.message || 'Error creating transaction')
-    setTransactions((prev) => [json.data, ...prev])
-    return json.data
+    if (invokeError) throw new Error(invokeError.message || 'Error creating transaction')
+    setTransactions((prev) => [responseData.data, ...prev])
+    return responseData.data
   }
 
   const deleteTransaction = async (id: string) => {
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('No session')
+    if (!session?.access_token) throw new Error('No active session')
 
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/transactions/${id}`,
-      {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      }
-    )
-    if (!res.ok) {
-      const json = await res.json()
-      throw new Error(json.message || 'Error deleting transaction')
+    const { error } = await supabase.functions.invoke(`transactions/${id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    })
+    
+    if (error) {
+      throw new Error(error.message || 'Error deleting transaction')
     }
     setTransactions((prev) => prev.filter((t) => t.id !== id))
   }

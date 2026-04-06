@@ -26,14 +26,11 @@ export function WhatsAppSettings() {
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-settings`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      const { data, error } = await supabase.functions.invoke('user-settings', {
+        method: 'GET',
       })
-      if (res.ok) {
-        const json = await res.json()
-        const d = json.data
+      if (!error && data) {
+        const d = data.data
         if (d) {
           setPhoneNumberId(d.whatsapp_phone_number_id || '')
           setVerifyToken(d.whatsapp_verify_token || '')
@@ -51,9 +48,6 @@ export function WhatsAppSettings() {
     setSuccess(null)
     setSaving(true)
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) throw new Error('No session')
-
       const body: Record<string, string> = {
         whatsapp_phone_number_id: phoneNumberId,
         whatsapp_verify_token: verifyToken,
@@ -62,17 +56,13 @@ export function WhatsAppSettings() {
         body.whatsapp_access_token = accessToken
       }
 
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/user-settings`, {
+      const { error } = await supabase.functions.invoke('user-settings', {
         method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
+        body,
       })
-      if (!res.ok) {
-        const json = await res.json()
-        throw new Error(json.message)
+      
+      if (error) {
+        throw new Error(error.message || 'Error saving settings')
       }
       setSuccess('Configuración guardada')
     } catch (err: unknown) {

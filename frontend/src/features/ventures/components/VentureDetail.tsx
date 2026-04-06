@@ -24,14 +24,11 @@ export function VentureDetail() {
     if (!id) return
     const fetchVenture = async () => {
       setLoading(true)
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) return
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ventures/${id}`, {
-        headers: { Authorization: `Bearer ${session.access_token}` },
+      const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
+        method: 'GET',
       })
-      if (!res.ok) { navigate('/ventures'); return }
-      const json = await res.json()
-      setVenture(json.data)
+      if (error || !data) { navigate('/ventures'); return }
+      setVenture(data.data)
       setLoading(false)
     }
     fetchVenture()
@@ -40,25 +37,18 @@ export function VentureDetail() {
 
   const handleEditVenture = async (input: CreateVentureInput) => {
     if (!id) return
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) throw new Error('No session')
-    const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ventures/${id}`, {
+    const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
       method: 'PUT',
-      headers: { Authorization: `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(input),
+      body: input,
     })
-    const json = await res.json()
-    if (!res.ok) throw new Error(json.message)
-    setVenture(json.data)
+    if (error) throw new Error(error.message || 'Error updating venture')
+    setVenture(data.data)
   }
 
   const handleDeleteVenture = async () => {
     if (!id || !confirm('¿Eliminar este venture y todas sus transacciones?')) return
-    const { data: { session } } = await supabase.auth.getSession()
-    if (!session) return
-    await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ventures/${id}`, {
+    await supabase.functions.invoke(`ventures/${id}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${session.access_token}` },
     })
     navigate('/ventures')
   }
