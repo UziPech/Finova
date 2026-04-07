@@ -9,6 +9,7 @@ import { formatCurrency, formatDate, formatROI } from '@/shared/lib/formatters'
 import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS } from '@/shared/lib/constants'
 import { calculateROI, breakEven, netProfit, ventureHealth } from '../utils'
 import { VentureForm } from './VentureForm'
+import { LoansSection } from '@/features/loans/components/LoansSection'
 import type { Venture, CreateVentureInput } from '../types'
 
 export function VentureDetail() {
@@ -20,7 +21,10 @@ export function VentureDetail() {
   const [showEditForm, setShowEditForm] = useState(false)
   const session = useAuthStore((s) => s.session)
 
-  const { transactions, loading: txLoading, fetchTransactions, createTransaction, deleteTransaction } = useTransactions(id)
+  const { transactions, loading: txLoading, fetchTransactions, createTransaction, deleteTransaction, total, page, pageSize } = useTransactions(id)
+  
+  const [searchTerm, setSearchTerm] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
     if (!id) return
@@ -37,9 +41,17 @@ export function VentureDetail() {
     }
     if (session?.access_token) {
       fetchVenture()
-      fetchTransactions(id)
     }
-  }, [id, navigate, fetchTransactions, session?.access_token])
+  }, [id, navigate, session?.access_token])
+
+  useEffect(() => {
+    if (id && session?.access_token) {
+      const delay = setTimeout(() => {
+        fetchTransactions({ ventureId: id, page: currentPage, pageSize: 10, search: searchTerm })
+      }, 300)
+      return () => clearTimeout(delay)
+    }
+  }, [id, currentPage, searchTerm, fetchTransactions, session?.access_token])
 
   const handleEditVenture = async (input: CreateVentureInput) => {
     if (!id) return
@@ -169,14 +181,25 @@ export function VentureDetail() {
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '16px 20px', borderBottom: '1px solid #f5f5f5',
+          padding: '16px 20px', borderBottom: '1px solid #f5f5f5', flexWrap: 'wrap', gap: '12px'
         }}>
-          <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>
-            Transacciones
-            <span style={{ color: '#a3a3a3', fontWeight: 400, marginLeft: '6px' }}>({transactions.length})</span>
-          </h2>
-          <button
-            onClick={() => setShowTxForm(true)}
+          <div>
+            <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>
+              Transacciones
+              <span style={{ color: '#a3a3a3', fontWeight: 400, marginLeft: '6px' }}>({total})</span>
+            </h2>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            <input 
+              type="text" 
+              placeholder="Buscar..." 
+              value={searchTerm}
+              onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+              className="form-input"
+              style={{ padding: '6px 12px', fontSize: '13px', width: '200px' }}
+            />
+            <button
+              onClick={() => setShowTxForm(true)}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: '6px',
               padding: '6px 12px', borderRadius: '8px',
@@ -191,6 +214,7 @@ export function VentureDetail() {
             </svg>
             Agregar
           </button>
+          </div>
         </div>
 
         {txLoading ? (
@@ -264,9 +288,31 @@ export function VentureDetail() {
                 </button>
               </div>
             ))}
+            
+            {total > (pageSize || 10) && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid #f5f5f5' }}>
+                <span style={{ fontSize: '12px', color: '#737373' }}>
+                  Página {page} de {Math.ceil(total / (pageSize || 10))}
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    disabled={page === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', border: '1px solid #e5e5e5', background: '#fff', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}
+                  >Anterior</button>
+                  <button 
+                    disabled={page >= Math.ceil(total / (pageSize || 10))}
+                    onClick={() => setCurrentPage(p => p + 1)}
+                    style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', border: '1px solid #e5e5e5', background: '#fff', cursor: page >= Math.ceil(total / (pageSize || 10)) ? 'not-allowed' : 'pointer', opacity: page >= Math.ceil(total / (pageSize || 10)) ? 0.5 : 1 }}
+                  >Siguiente</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
+
+      <LoansSection ventureId={venture.id} />
 
       {/* Modals */}
       {showTxForm && (

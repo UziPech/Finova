@@ -2,7 +2,7 @@
 import { useEffect } from 'react'
 import { useVentures } from '@/features/ventures/hooks/useVentures'
 import { useTransactions } from '@/features/transactions/hooks/useTransactions'
-import { calculateROI } from '@/features/ventures/utils'
+import { calculateHealth, calculateROI } from '@/features/ventures/utils'
 import { formatCurrency, formatROI } from '@/shared/lib/formatters'
 import { MetricCard } from './MetricCard'
 import { MonthlyChart } from './MonthlyChart'
@@ -10,6 +10,7 @@ import { VentureROIChart } from './VentureROIChart'
 import { TypeDistributionChart } from './TypeDistributionChart'
 import { VentureStatusList } from './VentureStatusList'
 import { SmartAlerts } from './SmartAlerts'
+import { DashboardLoans } from './DashboardLoans'
 
 export function DashboardView() {
   const { ventures, loading: venturesLoading } = useVentures()
@@ -61,10 +62,10 @@ export function DashboardView() {
           </svg>
         </div>
         <h1 style={{ fontSize: 'clamp(24px, 3vw, 28px)', fontWeight: 600, color: '#0a0a0a', letterSpacing: '-0.02em', margin: '0 0 12px 0', textAlign: 'center' }}>
-          Bienvenido a Finova
+          Resumen Ejecutivo
         </h1>
         <p style={{ fontSize: '15px', color: '#737373', maxWidth: '400px', textAlign: 'center', margin: '0 0 32px 0', lineHeight: 1.6 }}>
-          Aún no tienes ventures registrados. Comienza tu viaje financiero creando tu primer venture.
+          No existen proyectos registrados en el portafolio. Para habilitar las métricas de análisis, registre un nuevo venture.
         </p>
         <button
           onClick={() => window.location.href = '/ventures'}
@@ -101,9 +102,29 @@ export function DashboardView() {
   const totalInvested = ventures.reduce((sum, v) => sum + v.invested, 0)
   const totalReturned = ventures.reduce((sum, v) => sum + v.returned, 0)
   const activeVentures = ventures.filter((v) => v.status === 'active')
-  const rois = activeVentures.map((v) => calculateROI(v.invested, v.returned))
-  const avgROI = rois.length > 0 ? rois.reduce((a, b) => a + b, 0) / rois.length : 0
-  const positiveCount = rois.filter((r) => r > 0).length
+  const businessVentures = activeVentures.filter(v => v.mode === 'business')
+  const personalVentures = activeVentures.filter(v => v.mode === 'personal')
+
+  const isPersonalMajority = personalVentures.length > businessVentures.length
+
+  let avgMetric = 0
+  let positiveCount = 0
+  let metricTitle = 'ROI promedio'
+  let trendText = ''
+
+  if (isPersonalMajority) {
+    const healths = personalVentures.map(v => calculateHealth(v.invested, v.returned))
+    avgMetric = healths.length > 0 ? healths.reduce((a, b) => a + b, 0) / healths.length : 0
+    positiveCount = healths.filter(h => h > 20).length // >20% budget remaining is healthy
+    metricTitle = 'Salud Promedio'
+    trendText = `${positiveCount} proyecto${positiveCount !== 1 ? 's' : ''} saludable${positiveCount !== 1 ? 's' : ''}`
+  } else {
+    const rois = businessVentures.map(v => calculateROI(v.invested, v.returned))
+    avgMetric = rois.length > 0 ? rois.reduce((a, b) => a + b, 0) / rois.length : 0
+    positiveCount = rois.filter((r) => r > 0).length
+    metricTitle = 'ROI Promedio'
+    trendText = `${positiveCount} venture${positiveCount !== 1 ? 's' : ''} positivo${positiveCount !== 1 ? 's' : ''}`
+  }
 
   // Flujo libre del mes actual
   const today = new Date()
@@ -159,10 +180,10 @@ export function DashboardView() {
           delay={50}
         />
         <MetricCard
-          title="ROI promedio"
-          value={formatROI(avgROI)}
-          valueColor={avgROI > 0 ? '#16a34a' : avgROI < 0 ? '#dc2626' : undefined}
-          trend={{ value: `${positiveCount} venture${positiveCount !== 1 ? 's' : ''} positivo${positiveCount !== 1 ? 's' : ''}`, positive: avgROI >= 0 }}
+          title={metricTitle}
+          value={isPersonalMajority ? `${avgMetric.toFixed(0)}%` : formatROI(avgMetric)}
+          valueColor={isPersonalMajority ? (avgMetric > 20 ? '#16a34a' : '#dc2626') : (avgMetric > 0 ? '#16a34a' : avgMetric < 0 ? '#dc2626' : undefined)}
+          trend={{ value: trendText, positive: isPersonalMajority ? avgMetric > 20 : avgMetric >= 0 }}
           delay={100}
         />
         <MetricCard
@@ -187,7 +208,10 @@ export function DashboardView() {
         <VentureStatusList ventures={ventures} />
       </div>
 
-      {/* Fila C: Alertas inteligentes */}
+      {/* Fila C: Préstamos Globales */}
+      <DashboardLoans />
+
+      {/* Fila D: Alertas inteligentes */}
       <SmartAlerts ventures={ventures} transactions={transactions} />
 
       {/* Guía de colores — UX info */}

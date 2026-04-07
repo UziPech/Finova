@@ -1,7 +1,7 @@
 # Reporte de Auditoría — Finova
 
 > Generado automáticamente — 2026-04-07
-> Estado: Sprint 1 (Fix Cimientos) completado — Deuda técnica pendiente
+> Estado: Sprint 2 (Nuevas Features) en curso — Bugs críticos pendientes
 
 ---
 
@@ -9,116 +9,208 @@
 
 | # | Bug | Estado | Detalle |
 |---|-----|--------|---------|
-| 1.1 | ~~Auth headers en ventures~~ | ✅ **FIXED** | `useVentures.ts` inyecta `Authorization: Bearer` en todas las llamadas (GET, POST, PUT, DELETE). `VentureDetail.tsx` también. |
-| 1.2 | ~~WhatsApp Settings endpoint~~ | ✅ **FIXED** | `WhatsAppSettings.tsx` llama a `user-settings/integrations` — edge function `user-settings/index.ts` maneja GET/PUT/DELETE correctamente. |
-| 1.3 | ~~repomix.config.json~~ | ✅ **FIXED** | Paths correctos: `frontend/src/**/*.ts`, `backend/**/*.ts`. Ya no usa `apps/web/` ni `apps/api/`. |
-| 1.4 | ~~Tablas documentadas ≠ tablas reales~~ | ✅ **FIXED** | CLAUDE.md documenta correctamente: `user_integrations`, `whatsapp_keywords`, `ventures`, `transactions`, `household_expenses`. Coincide con el código real. |
-| 1.5 | ~~`.vscode/settings.json`~~ | ✅ **FIXED** | Existe con `deno.enablePaths: ["backend/supabase/functions"]`. Habilita Deno solo para edge functions. |
+| 1.1 | ~~Auth headers en ventures~~ | ✅ **FIXED** | `useVentures.ts` inyecta `Authorization: Bearer` en todas las llamadas. `VentureDetail.tsx` también. |
+| 1.2 | **WhatsApp Settings field mismatch** | 🔴 **STILL BROKEN** | GET fixed (lee de `d.config`) pero PUT sigue roto — frontend envía `whatsapp_phone_number_id`, backend espera `phone_number_id`. Ver §1.2b. |
+| 1.3 | ~~repomix.config.json~~ | ✅ **FIXED** | Paths correctos. |
+| 1.4 | ~~Tablas documentadas ≠ tablas reales~~ | ✅ **FIXED** | CLAUDE.md actualizado. |
+| 1.5 | ~~`.vscode/settings.json`~~ | ✅ **FIXED** | Deno habilitado para edge functions. |
 
 ### Bugs adicionales encontrados durante auditoría
 
 | # | Bug | Estado | Detalle |
 |---|-----|--------|---------|
-| 1.6 | ~~`\n` literal en transactions/index.ts:61~~ | ✅ **FIXED** | Había un carácter `\n` literal incrustado en la línea 61 que rompía la sintaxis. Corregido a salto de línea real. |
+| 1.6 | ~~`\n` literal en transactions/index.ts:61~~ | ✅ **FIXED** | Corregido a salto de línea real. |
 
-**Sprint 1: 6/6 completado ✅**
-
----
-
-## 2. Deuda Técnica Pendiente
-
-### 2.1 `any` types en Edge Functions (10 ocurrencias)
-
-| Archivo | Línea | Código actual | Fix sugerido |
-|---------|-------|--------------|--------------|
-| `whatsapp-webhook/index.ts` | 98 | `let payload: any` | `let payload: { object: string; entry?: Array<{ changes?: Array<{ value?: { messages?: Array<Record<string, unknown>>; metadata?: { phone_number_id: string } } }> }> }` |
-| `whatsapp-webhook/index.ts` | 265-266 | `(t: any)` × 4 | `type TxTotals = Pick<Transaction, 'type' | 'amount'>` — definir tipo inline |
-| `user-settings/index.ts` | 11 | `supabase: any` | `supabase: SupabaseClient` — importar tipo de `@supabase/supabase-js` |
-| `ventures/index.ts` | 19 | `supabase: any` | `supabase: SupabaseClient` |
-| `transactions/index.ts` | 13 | `supabase: any` | `supabase: SupabaseClient` |
-| `transactions/index.ts` | 118-119, 145-146 | `(t: any)` × 8 | Mismo tipo inline `TxTotals` |
-
-**Prioridad:** Media — no rompe nada, pero viola la regla #6 de CLAUDE.md ("No usar `any`").
-**Esfuerzo:** ~20 min
-
-### 2.2 Cross-feature imports de auth
-
-| Archivo | Import | Evaluación |
-|---------|--------|------------|
-| `useVentures.ts:5` | `import { useAuthStore } from '@/features/auth/store'` | ✅ **Aceptable** — auth es infraestructura compartida, no un feature de dominio |
-| `useTransactions.ts:5` | `import { useAuthStore } from '@/features/auth/store'` | ✅ **Aceptable** — misma razón |
-
-**Veredicto:** No es un bug. CLAUDE.md debería mencionar explícitamente que `auth/store` es excepción permitida.
+**Sprint 1: 5/6 completado — 1 bug crítico abierto 🔴**
 
 ---
 
-## 3. Calidad por Capa
+### 1.2b — WhatsApp Settings: Mismatch de campos (DETALLE)
 
-### Frontend — 8.5/10
+**GET está FIXED** — ahora lee correctamente de `d.config.phone_number_id`, `d.config.verify_token`, `d.encrypted_token`.
+
+**PUT sigue ROTO** — el frontend envía campos con prefijo `whatsapp_` que el backend no reconoce:
+
+| Lo que el frontend envía | Lo que el backend espera | ¿Match? |
+|---|---|---|
+| `whatsapp_phone_number_id` | `phone_number_id` | ❌ |
+| `whatsapp_access_token` | `access_token` | ❌ |
+| `whatsapp_verify_token` | `verify_token` | ❌ |
+
+**Archivo:** `WhatsAppSettings.tsx:59-64`
+
+#### Fix requerido
+
+Cambiar en `WhatsAppSettings.tsx` el body del PUT:
+```ts
+// Antes (roto):
+body.whatsapp_phone_number_id = phoneNumberId
+body.whatsapp_access_token = accessToken
+body.whatsapp_verify_token = verifyToken
+
+// Después (correcto):
+body.phone_number_id = phoneNumberId
+body.access_token = accessToken
+body.verify_token = verifyToken
+```
+
+**Esfuerzo:** ~5 min
+
+---
+
+## 2. Bugs en Nuevas Features (Sprint 2)
+
+### 2.1 `mode` no existe en tabla `ventures`
+
+**Archivos:** `VentureForm.tsx:46`, `VentureDetail.tsx`
+
+El formulario envía `mode: 'business' | 'personal'` al backend, pero la tabla `ventures` no tiene esa columna. El backend de `ventures/index.ts` inserta campos explícitos (`name`, `type`, `status`, `invested`, `returned`, `currency`, `start_date`, `end_date`, `notes`) — `mode` se ignora silenciosamente.
+
+**Impacto:** El toggle business/personal funciona solo en UI — no persiste. Al editar un venture personal, se pierde el modo.
+
+**Fix sugerido:** Opción A — agregar columna `mode` a la tabla `ventures` con migration. Opción B — derivar `mode` del `type` en frontend (`type === 'mixed' && invested > 0` → personal).
+
+### 2.2 Typo "Pŕestamo" (acento invertido)
+
+| Archivo | Línea | Texto actual | Correcto |
+|---------|-------|-------------|----------|
+| `LoanForm.tsx` | 138 | `Crear Pŕestamo` | `Crear Préstamo` |
+| `LoansSection.tsx` | 96 | `Total Pŕestamo` | `Total Préstamo` |
+
+### 2.3 `any` en código nuevo
+
+| Archivo | Línea | Código | Fix |
+|---------|-------|--------|-----|
+| `LoanForm.tsx` | 39 | `catch (err: any)` | `catch (err: unknown)` |
+| `LoansSection.tsx` | 18 | `handleCreate = async (input: any)` | Tipar con `CreateLoanInput` |
+| `useCategories.ts` | 43 | `catch (err: any)` | `catch (err: unknown)` |
+| `loans/index.ts` | 19 | `supabase: any` | `SupabaseClient` |
+| `transactions/index.ts` | 148-150, 174-176 | `(t: any)` × 8 | Tipo inline `TxTotals` |
+
+### 2.4 Tablas sin migration
+
+| Tabla | Usada en | Estado |
+|-------|----------|--------|
+| `loans` | `loans/index.ts`, `LoansSection.tsx` | Sin migration en repo |
+| `loan_payments` | `loans/index.ts`, `LoansSection.tsx` | Sin migration en repo |
+| `transaction_categories` | `useCategories.ts`, `transactions/index.ts` | Sin migration en repo |
+
+**Impacto:** Si se necesita reproducir el schema desde cero, estas 3 tablas no existen en versionado.
+
+---
+
+## 3. Deuda Técnica Pendiente (heredada)
+
+### 3.1 `any` types en Edge Functions (10 ocurrencias originales + 1 nueva)
+
+| Archivo | Línea | Código actual |
+|---------|-------|--------------|
+| `whatsapp-webhook/index.ts` | 98 | `let payload: any` |
+| `whatsapp-webhook/index.ts` | 265-266 | `(t: any)` × 4 |
+| `user-settings/index.ts` | 11 | `supabase: any` |
+| `ventures/index.ts` | 19 | `supabase: any` |
+| `transactions/index.ts` | 13 | `supabase: any` |
+| `transactions/index.ts` | 148-150, 174-176 | `(t: any)` × 8 |
+| `loans/index.ts` | 19 | `supabase: any` |
+
+### 3.2 CORS duplicado
+
+5 edge functions (ventures, transactions, user-settings, whatsapp-webhook, loans) definen `corsHeaders` inline idéntico cuando existe `backend/_shared/cors.ts`.
+
+### 3.3 Debug logs en producción
+
+`console.log` en `ventures/index.ts:58-61` — imprime auth header en cada request.
+
+---
+
+## 4. Features Nuevas Implementadas (Sprint 2)
+
+| Feature | Estado | Notas |
+|---------|--------|-------|
+| Paginación de transacciones | ✅ Funcional | Backend + frontend con búsqueda y debounce |
+| Categorías de transacciones | ✅ Funcional | Hook + Zustand store + selector en form |
+| Toggle business/personal en ventures | ⚠️ Parcial | UI funciona pero `mode` no persiste en DB |
+| Módulo de préstamos (Loans) | ✅ Funcional | CRUD completo + generación de cronograma |
+| Types centralizados en `_shared/types.ts` | ✅ Implementado | 243 líneas, fuente de verdad |
+| Constants con labels de modo | ✅ Implementado | `VENTURE_MODE_LABELS`, `VENTURE_MODE_METRICS` |
+
+---
+
+## 5. Calidad por Capa
+
+### Frontend — 7.5/10
 
 | Aspecto | Evaluación |
 |---------|-----------|
-| TypeScript | ✅ Sin `any` en ningún archivo `.ts` o `.tsx` del frontend |
-| Arquitectura | ✅ Vertical Slice respetado — features no se importan entre sí |
-| Componentes | ✅ Limpios, sin lógica en `pages/`, inline styles consistentes |
-| Hooks | ✅ Bien estructurados — `useCallback`, `useEffect` con dependencias correctas |
-| Stores (Zustand) | ✅ Un store por feature, sin store global |
-| Auth en llamadas | ✅ Todas las llamadas a edge functions incluyen `Authorization` header |
-| Manejo de errores | ✅ try/catch, error states en UI, mensajes descriptivos |
+| TypeScript | ⚠️ 3 `any` en código nuevo (LoanForm, LoansSection, useCategories) |
+| Arquitectura | ✅ Vertical Slice respetado |
+| Componentes | ✅ Limpios, sin lógica en `pages/` |
+| Hooks | ✅ Bien estructurados, debounce correcto |
+| Stores (Zustand) | ✅ Un store por feature |
+| Auth en llamadas | ✅ Todas incluyen `Authorization` |
+| WhatsApp Settings | 🔴 PUT roto — field mismatch |
 
-### Backend (Edge Functions) — 6.5/10
-
-| Aspecto | Evaluación |
-|---------|-----------|
-| CORS | ✅ Todas las funciones tienen `handleCors()` inline |
-| Rate Limiting | ✅ Todas usan `checkRateLimit()` con RPC |
-| Auth | ✅ Validan `Authorization` header con `supabase.auth.getUser()` |
-| Routing | ✅ Routing por método HTTP y path parsing correcto |
-| TypeScript | ⚠️ 10 usos de `any` — deuda técnica |
-| Error handling | ✅ try/catch global, respuestas con códigos HTTP apropiados |
-| HMAC verification | ✅ WhatsApp webhook verifica firma SHA-256 |
-
-### Infraestructura — 9/10
+### Backend (Edge Functions) — 5.5/10
 
 | Aspecto | Evaluación |
 |---------|-----------|
-| `.vscode/settings.json` | ✅ Deno habilitado solo para `backend/supabase/functions` |
+| CORS | ✅ Todas tienen handleCors() |
+| Rate Limiting | ✅ Todas usan checkRateLimit() |
+| Auth | ✅ Validan Authorization header |
+| Routing | ✅ Routing correcto |
+| TypeScript | 🔴 11 usos de `any` (10 heredados + 1 nuevo en loans) |
+| Error handling | ✅ try/catch global |
+| HMAC verification | ✅ WhatsApp webhook |
+| Debug en producción | ⚠️ console.log en ventures |
+| Migrations | 🔴 3 tablas nuevas sin versionado |
+
+### Infraestructura — 8.5/10
+
+| Aspecto | Evaluación |
+|---------|-----------|
+| `.vscode/settings.json` | ✅ Deno habilitado |
 | `repomix.config.json` | ✅ Paths correctos |
-| `CLAUDE.md` | ✅ Documento maestro actualizado y preciso |
-| Monorepo | ✅ npm workspaces configurado correctamente |
-| `.gitignore` | ✅ Bloquea `.env*` y archivos sensibles |
+| `CLAUDE.md` | ✅ Actualizado |
+| Monorepo | ✅ npm workspaces |
+| `.gitignore` | ✅ Bloquea `.env*` |
+| Types centralizados | ✅ `_shared/types.ts` |
 
 ---
 
-## 4. Hallazgos Adicionales
+## 6. Hallazgos Adicionales
 
 | Hallazgo | Tipo | Acción |
 |----------|------|--------|
-| `keywords` edge function no existe como archivo separado | Info | No es un bug — la lógica está dentro de `user-settings/index.ts`. Mejor así. |
-| `sendWhatsAppMessage()` no existe en `_shared/whatsapp.ts` | Pendiente | Parte del Sprint 2 (Agente IA). No es deuda técnica. |
-| `ai_transaction_logs` table no existe | Pendiente | Parte del Sprint 2. Esperado. |
-| `ai_agent_config` table no existe | Pendiente | Parte del Sprint 2. El plan mismo dice que es "premature abstraction". |
-| Storage bucket `evidence` | ✅ Existe | Se usa en `transactions/index.ts` para upload de evidencias |
-| `encrypt_token` / `decrypt_token` RPC | ✅ Existen | Se usan en `user-settings/index.ts` y `whatsapp-webhook/index.ts` |
+| `sendWhatsAppMessage()` no existe | Pendiente | Sprint 3 (Agente IA) |
+| `ai_transaction_logs` table no existe | Pendiente | Sprint 3 |
+| Storage bucket `evidence` | ✅ Existe | Funcional |
+| `encrypt_token` / `decrypt_token` RPC | ✅ Existen | Funcionales |
+| `<title>web</title>` en index.html | Limpieza | Cambiar a `Finova` |
 
 ---
 
-## 5. Resumen Ejecutivo
+## 7. Resumen Ejecutivo
 
 ```
-Bugs del cimiento:     5/5  ✅ COMPLETADO
-Deuda técnica:         1/10 ⚠️ PENDIENTE (solo `any` types)
-Calidad frontend:      8.5/10 ✅ BUENA
-Calidad backend:       6.5/10 ⚠️ REGULAR (por `any` types)
-Calidad infra:         9/10   ✅ EXCELENTE
+Bugs del cimiento:     5/6  ⚠️ 1 ABIERTO (WhatsApp PUT mismatch)
+Bugs features nuevas:  3/3  🔴 mode sin DB + 2 typos + 5 `any` nuevos
+Deuda técnica total:   11 `any` + CORS duplicado + 3 tablas sin migration
+Calidad frontend:      7.5/10 ⚠️ (bajó por `any` nuevos + WhatsApp roto)
+Calidad backend:       5.5/10 🔴 (bajó por loans `any` + sin migrations)
+Calidad infra:         8.5/10 ✅
 ```
 
-### Próximos pasos recomendados
+### Próximos pasos priorizados
 
-1. **Fix `any` types** (~20 min) — limpiar los 10 usos de `any` en edge functions
-2. **Sprint 2: Agente IA** — Gemini Flash 2.5 + webhook + respuestas WhatsApp
-3. **Dashboard de pendientes** — UI para revisar transacciones del agente
+1. **Fix WhatsApp Settings PUT** (~5 min) — 🔴 CRÍTICO
+2. **Agregar columna `mode` a ventures** (migration + backend) — 🔴
+3. **Fix typos "Pŕestamo"** (~2 min) — 🟢
+4. **Fix `any` en código nuevo** (~15 min) — 🟡
+5. **Crear migrations para loans, loan_payments, transaction_categories** (~30 min) — 🟡
+6. **Fix `any` heredados** (~20 min) — 🟢
+7. **Sprint 3: Agente IA** — pendiente
 
 ---
 
-> El cimiento está sólido. Los bugs críticos están resueltos. La única deuda técnica relevante son los `any` types en el backend, que no afectan funcionalidad pero violan las reglas del proyecto.
+> Última actualización: 2026-04-07
+> Revisión manual completada — todos los cambios verificados contra git diff

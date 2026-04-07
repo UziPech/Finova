@@ -5,15 +5,28 @@ import type { Transaction, CreateTransactionInput } from '../types'
 import { useAuthStore } from '@/features/auth/store'
 import { useVentures } from '@/features/ventures/hooks/useVentures'
 
+export interface TransactionsFetchOptions {
+  ventureId?: string;
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  categoryId?: string;
+}
+
 export function useTransactions(ventureId?: string) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(20)
   const { session } = useAuthStore()
   const { fetchVentures } = useVentures()
 
-  const fetchTransactions = useCallback(async (vid?: string) => {
-    const id = vid || ventureId
+  const fetchTransactions = useCallback(async (opts?: string | TransactionsFetchOptions) => {
+    const isString = typeof opts === 'string'
+    const id = (isString ? opts : opts?.ventureId) || ventureId
+    
     setLoading(true)
     setError(null)
 
@@ -23,13 +36,31 @@ export function useTransactions(ventureId?: string) {
       return
     }
 
-    const { data, error: invokeError } = await supabase.functions.invoke('transactions' + (id ? `?venture_id=${id}` : ''), {
+    const params = new URLSearchParams()
+    if (id) params.append('venture_id', id)
+    
+    if (!isString && opts) {
+      if (opts.page) {
+        params.append('page', opts.page.toString())
+        setPage(opts.page)
+      }
+      if (opts.pageSize) {
+        params.append('page_size', opts.pageSize.toString())
+        setPageSize(opts.pageSize)
+      }
+      if (opts.search) params.append('search', opts.search)
+      if (opts.categoryId) params.append('category_id', opts.categoryId)
+    }
+
+    const qs = params.toString()
+    const { data, error: invokeError } = await supabase.functions.invoke('transactions' + (qs ? `?${qs}` : ''), {
       method: 'GET',
       headers: { Authorization: `Bearer ${session.access_token}` }
     })
 
     if (invokeError) { setError(invokeError.message); setLoading(false); return }
     setTransactions(data?.data ?? [])
+    if (data?.total !== undefined) setTotal(data.total)
     setLoading(false)
   }, [ventureId, session])
 
@@ -46,6 +77,7 @@ export function useTransactions(ventureId?: string) {
       formData.append('amount', String(input.amount))
       formData.append('date', input.date)
       if (input.description) formData.append('description', input.description)
+      if (input.category_id) formData.append('category_id', input.category_id)
       formData.append('evidence', evidence)
 
       const { data, error } = await supabase.functions.invoke('transactions', {
@@ -95,6 +127,9 @@ export function useTransactions(ventureId?: string) {
     transactions,
     loading,
     error,
+    total,
+    page,
+    pageSize,
     fetchTransactions,
     createTransaction,
     deleteTransaction,

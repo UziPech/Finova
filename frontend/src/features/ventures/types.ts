@@ -6,6 +6,7 @@ export type {
   VentureType,
   VentureStatus,
   VentureHealth,
+  VentureMode,
   CreateVentureInput,
   UpdateVentureInput,
 } from '@backend/_shared/types'

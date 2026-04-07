@@ -1,7 +1,9 @@
 // features/dashboard/components/SmartAlerts.tsx — Tarjetas horizontales de alerta
+import { useEffect } from 'react'
 import type { Venture, Transaction } from '@backend/_shared/types'
 import { calculateROI } from '@/features/ventures/utils'
-import { formatROI, formatCurrency } from '@/shared/lib/formatters'
+import { formatROI, formatCurrency, formatDate } from '@/shared/lib/formatters'
+import { useLoans } from '@/features/loans/hooks/useLoans'
 
 interface SmartAlertsProps {
   ventures: Venture[]
@@ -20,6 +22,12 @@ interface AlertData {
 }
 
 export function SmartAlerts({ ventures, transactions }: SmartAlertsProps) {
+  const { loans, fetchLoans } = useLoans()
+
+  useEffect(() => {
+    fetchLoans()
+  }, [fetchLoans])
+
   const alerts: AlertData[] = []
   const activeVentures = ventures.filter((v) => v.status === 'active')
   const now = new Date()
@@ -37,8 +45,8 @@ export function SmartAlerts({ ventures, transactions }: SmartAlertsProps) {
       const lost = v.invested - v.returned
       alerts.push({
         id: `red_${v.id}`,
-        title: `${v.name} lleva ${months > 0 ? `${months} ${months === 1 ? 'mes' : 'meses'}` : `${diffDays} días`} en rojo`,
-        description: `Has perdido ${formatCurrency(lost)} sin recuperación. Considera cerrarla.`,
+        title: `${v.name} lleva ${months > 0 ? `${months} ${months === 1 ? 'mes' : 'meses'}` : `${diffDays} días`} en déficit`,
+        description: `Pérdida acumulada de ${formatCurrency(lost)}. Se sugiere revisión de rentabilidad.`,
         actionLabel: 'Analizar ↗',
         borderColor: '#ef4444',
         bgColor: '#FCEBEB',
@@ -64,8 +72,8 @@ export function SmartAlerts({ ventures, transactions }: SmartAlertsProps) {
     if (bestROI > 0) {
       alerts.push({
         id: 'green_best',
-        title: `${bestVenture.name} tiene el mayor ROI (${formatROI(bestROI)})`,
-        description: `Es tu mejor venture. ¿Estás invirtiendo suficiente en él?`,
+        title: `${bestVenture.name} tiene el mayor rendimiento (${formatROI(bestROI)})`,
+        description: `Venture con mejor desempeño histórico. Evaluar escalabilidad.`,
         actionLabel: 'Escalar ↗',
         borderColor: '#22c55e',
         bgColor: '#EAF3DE',
@@ -104,8 +112,8 @@ export function SmartAlerts({ ventures, transactions }: SmartAlertsProps) {
       const pctOver = (((currentExpenses - avg) / avg) * 100).toFixed(0)
       alerts.push({
         id: 'yellow_expense',
-        title: `Gasto subió ${pctOver}% este mes`,
-        description: `${formatCurrency(currentExpenses)} vs promedio de ${formatCurrency(avg)}. Revisa categorías.`,
+        title: `Incremento de gasto mensual (${pctOver}%)`,
+        description: `Gasto actual: ${formatCurrency(currentExpenses)} vs Histórico: ${formatCurrency(avg)}. Se requiere revisión.`,
         actionLabel: 'Revisar ↗',
         borderColor: '#eab308',
         bgColor: '#FAEEDA',
@@ -122,8 +130,8 @@ export function SmartAlerts({ ventures, transactions }: SmartAlertsProps) {
   if (ideaCount > 0) {
     alerts.push({
       id: 'info_idea',
-      title: `${ideaCount} proyecto${ideaCount > 1 ? 's' : ''} en fase de idea`,
-      description: 'No aparecen en ROI aún. Cámbialos a "Activo" para ver sus métricas.',
+      title: `Proyectos en fase de validación (${ideaCount})`,
+      description: 'Métricas excluidas del cálculo de ROI global actual.',
       actionLabel: 'Ver proyectos ↗',
       borderColor: '#a3a3a3',
       bgColor: '#fafafa',
@@ -135,8 +143,8 @@ export function SmartAlerts({ ventures, transactions }: SmartAlertsProps) {
   if (closedCount > 0) {
     alerts.push({
       id: 'info_closed',
-      title: `${closedCount} proyecto${closedCount > 1 ? 's' : ''} cerrado${closedCount > 1 ? 's' : ''}`,
-      description: 'Histórico guardado pero excluido de métricas actuales.',
+      title: `Proyectos inactivos / cerrados (${closedCount})`,
+      description: 'Cuentas archivadas. Excluidas del cálculo de flujo activo.',
       actionLabel: 'Ver archivo ↗',
       borderColor: '#a3a3a3',
       bgColor: '#f5f5f5',
@@ -144,6 +152,41 @@ export function SmartAlerts({ ventures, transactions }: SmartAlertsProps) {
       actionColor: '#a3a3a3',
     })
   }
+
+  // 6. Alerta Naranja/Roja: Préstamos por vencer
+  loans.filter(l => l.status !== 'paid').forEach((loan) => {
+    if (!loan.loan_payments) return
+    const nextPayment = loan.loan_payments.find(p => p.status === 'pending')
+    if (nextPayment) {
+      const dueDate = new Date(nextPayment.due_date)
+      const diffMs = dueDate.getTime() - now.getTime()
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+
+      if (diffDays <= 0) {
+        alerts.unshift({
+          id: `loan_danger_${loan.id}`,
+          title: `Pago Vencido: ${loan.name}`,
+          description: `Se debió pagar ${formatCurrency(nextPayment.amount)} el ${formatDate(nextPayment.due_date)}.`,
+          actionLabel: 'Pagar ahora ↗',
+          borderColor: '#dc2626',
+          bgColor: '#fef2f2',
+          titleColor: '#991b1b',
+          actionColor: '#b91c1c',
+        })
+      } else if (diffDays <= 7) {
+        alerts.unshift({
+          id: `loan_warning_${loan.id}`,
+          title: `Próximo pago: ${loan.name}`,
+          description: `Vence en ${diffDays} día${diffDays !== 1 ? 's' : ''}. Monto: ${formatCurrency(nextPayment.amount)}.`,
+          actionLabel: 'Preparar pago ↗',
+          borderColor: '#f97316',
+          bgColor: '#fff7ed',
+          titleColor: '#9a3412',
+          actionColor: '#c2410c',
+        })
+      }
+    }
+  })
 
   const displayAlerts = alerts.slice(0, 4)
 

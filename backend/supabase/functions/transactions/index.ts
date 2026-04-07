@@ -52,20 +52,49 @@ Deno.serve(async (req: Request) => {
     const method = req.method
     const rh = { ...corsHeaders, ...rl.headers, 'Content-Type': 'application/json' }
 
-    // GET — listar transacciones (opcionalmente filtradas por venture_id)
+    // GET — listar transacciones
+    // Sin paginación: retorna todo (Dashboard, resúmenes)
+    // Con page + page_size: paginado (VentureDetail con búsqueda)
     if (method === 'GET') {
       const ventureId = url.searchParams.get('venture_id')
-      let query = supabase.from('transactions').select('*').order('date', { ascending: false })
+      const search = url.searchParams.get('search')?.trim()
+      const categoryId = url.searchParams.get('category_id')
+      const pageParam = url.searchParams.get('page')
+      const pageSizeParam = url.searchParams.get('page_size')
+      const isPaginated = pageParam !== null && pageSizeParam !== null
+
+      // Siempre unir con categoría para enriquecer la respuesta
+      let query = supabase
+        .from('transactions')
+        .select('*, category:transaction_categories(id, name, accounting_type, icon, color)', { count: isPaginated ? 'exact' : undefined })
+        .order('date', { ascending: false })
+
       if (ventureId) query = query.eq('venture_id', ventureId)
+      if (search) query = query.ilike('description', `%${search}%`)
+      if (categoryId) query = query.eq('category_id', categoryId)
+
+      if (isPaginated) {
+        const page = Math.max(1, parseInt(pageParam!))
+        const pageSize = Math.min(100, Math.max(1, parseInt(pageSizeParam!)))
+        const from = (page - 1) * pageSize
+        const to = from + pageSize - 1
+        query = query.range(from, to)
+        const { data, error, count } = await query
+        if (error) return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })
+        return new Response(JSON.stringify({ data, total: count ?? 0, page, page_size: pageSize }), { status: 200, headers: rh })
+      }
+
+      // Sin paginación — retorna todo (no rompe Dashboard)
       const { data, error } = await query
       if (error) return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })
       return new Response(JSON.stringify({ data }), { status: 200, headers: rh })
     }
 
+
     // POST — crear transacción
     if (method === 'POST') {
       const contentType = req.headers.get('content-type') || ''
-      let body: { venture_id: string; type: string; amount: number; description?: string; date: string; evidence_url?: string }
+      let body: { venture_id: string; type: string; amount: number; description?: string; date: string; evidence_url?: string; category_id?: string }
       let evidenceUrl: string | null = null
 
       if (contentType.includes('multipart/form-data')) {
@@ -76,6 +105,7 @@ Deno.serve(async (req: Request) => {
           amount: parseFloat(fd.get('amount') as string),
           description: (fd.get('description') as string) || undefined,
           date: fd.get('date') as string,
+          category_id: (fd.get('category_id') as string) || undefined,
         }
         const file = fd.get('evidence') as File | null
         if (file) {
@@ -109,6 +139,7 @@ Deno.serve(async (req: Request) => {
         venture_id: body.venture_id, user_id: user.id, type: body.type,
         amount: body.amount, description: body.description || null,
         date: body.date, evidence_url: evidenceUrl || body.evidence_url || null,
+        category_id: body.category_id || null,
       }).select().single()
 
       if (error) return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })

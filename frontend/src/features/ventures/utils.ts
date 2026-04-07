@@ -24,3 +24,10 @@ export const ventureHealth = (roi: number): VentureHealth => {
 export const netProfit = (invested: number, returned: number): number => {
   return returned - invested
 }
+
+/** Salud del presupuesto en porcentaje (0 = agotado, 100 = intacto). Solo para modo personal. */
+export const calculateHealth = (budget: number, spent: number): number => {
+  if (budget <= 0) return 0
+  const remaining = budget - spent
+  return Math.max(0, Number(((remaining / budget) * 100).toFixed(2)))
+}

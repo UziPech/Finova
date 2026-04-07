@@ -1,9 +1,10 @@
-import { useState, useRef, type FormEvent } from 'react'
+import { useState, useRef, useEffect, type FormEvent } from 'react'
+import { useCategories } from '../hooks/useCategories'
 import { SlidePanel } from '@/shared/components/SlidePanel'
 
 interface TransactionFormProps {
   ventureId: string
-  onSubmit: (input: { venture_id: string; type: 'income' | 'expense'; amount: number; description: string; date: string }, evidence?: File) => Promise<void>
+  onSubmit: (input: { venture_id: string; type: 'income' | 'expense'; amount: number; description: string; date: string; category_id?: string }, evidence?: File) => Promise<void>
   onClose: () => void
 }
 
@@ -25,7 +26,13 @@ export function TransactionForm({ ventureId, onSubmit, onClose }: TransactionFor
   const [amount, setAmount] = useState('')
   const [description, setDescription] = useState('')
   const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [categoryId, setCategoryId] = useState<string>('')
   const [evidence, setEvidence] = useState<File | null>(null)
+  
+  const { categories, fetchCategories } = useCategories()
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -46,6 +53,7 @@ export function TransactionForm({ ventureId, onSubmit, onClose }: TransactionFor
           amount: numAmount,
           description: description.trim() || `${type === 'income' ? 'Ingreso' : 'Gasto'} manual`,
           date,
+          category_id: categoryId || undefined,
         },
         evidence || undefined
       )
@@ -78,9 +86,28 @@ export function TransactionForm({ ventureId, onSubmit, onClose }: TransactionFor
                 boxShadow: type === t ? '0 1px 2px rgba(0,0,0,0.2)' : 'none',
               }}
             >
-              {t === 'expense' ? '💸 Gasto' : '💰 Ingreso'}
+              {t === 'expense' ? 'Gasto' : 'Ingreso'}
             </button>
           ))}
+        </div>
+
+        {/* Category */}
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#a3a3a3', marginBottom: '6px' }}>Categoría <span style={{ color: '#737373' }}>(opcional)</span></label>
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = '#555'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(82,82,82,0.3)' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = '#2a2a2a'; e.currentTarget.style.boxShadow = 'none' }}
+          >
+            <option value="">-- Sin categoría --</option>
+            {categories.map((c) => (
+              <option key={c.id} value={c.id} style={{ color: c.type === 'capital' ? '#f97316' : 'inherit' }}>
+                {c.name} {c.type === 'capital' ? '(Inversión)' : ''}
+              </option>
+            ))}
+          </select>
         </div>
 
         {/* Amount */}

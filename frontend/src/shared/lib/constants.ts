@@ -16,3 +16,13 @@ export const VENTURE_STATUS_LABELS: Record<string, string> = {
   closed: 'Cerrado',
   idea: 'Idea',
 }
+
+export const VENTURE_MODE_LABELS: Record<string, string> = {
+  business: 'Negocio',
+  personal: 'Personal / Hogar',
+}
+
+export const VENTURE_MODE_METRICS: Record<string, { invested: string; returned: string; roi: string }> = {
+  business: { invested: 'Invertido', returned: 'Retornado', roi: 'ROI' },
+  personal: { invested: 'Presupuesto', returned: 'Gastado', roi: 'Salud' },
+}
