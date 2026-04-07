@@ -1,14 +1,15 @@
-// features/dashboard/components/MetricCard.tsx — Monochrome premium card
+// features/dashboard/components/MetricCard.tsx — Premium metric card
 interface MetricCardProps {
   title: string
   value: string
+  valueColor?: string
   subtitle?: string
-  icon: React.ReactNode
+  icon?: React.ReactNode
   trend?: { value: string; positive: boolean }
   delay?: number
 }
 
-export function MetricCard({ title, value, subtitle, icon, trend, delay = 0 }: MetricCardProps) {
+export function MetricCard({ title, value, valueColor, subtitle, icon, trend, delay = 0 }: MetricCardProps) {
   return (
     <div
       className="animate-fade-in"
@@ -20,6 +21,9 @@ export function MetricCard({ title, value, subtitle, icon, trend, delay = 0 }: M
         transition: 'box-shadow 0.2s, border-color 0.2s',
         animationDelay: `${delay}ms`,
         cursor: 'default',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '6px',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.04)'
@@ -30,42 +34,66 @@ export function MetricCard({ title, value, subtitle, icon, trend, delay = 0 }: M
         e.currentTarget.style.borderColor = '#e5e5e5'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <div style={{
-          width: '40px',
-          height: '40px',
-          borderRadius: '10px',
-          backgroundColor: '#f5f5f5',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#525252',
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <p style={{
+          fontSize: '11px',
+          fontWeight: 600,
+          color: '#737373',
+          letterSpacing: '0.06em',
+          textTransform: 'uppercase',
+          margin: 0,
         }}>
-          {icon}
-        </div>
-        {trend && (
-          <span style={{
-            display: 'inline-flex',
+          {title}
+        </p>
+        {icon && (
+          <div style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '8px',
+            backgroundColor: '#f5f5f5',
+            display: 'flex',
             alignItems: 'center',
-            gap: '2px',
-            fontSize: '12px',
-            fontWeight: 500,
-            padding: '2px 8px',
-            borderRadius: '999px',
-            backgroundColor: trend.positive ? '#f0fdf4' : '#fef2f2',
-            color: trend.positive ? '#16a34a' : '#dc2626',
+            justifyContent: 'center',
+            color: '#525252',
+            flexShrink: 0,
           }}>
-            <svg style={{ width: '12px', height: '12px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round"
-                d={trend.positive ? 'M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25' : 'M4.5 4.5l15 15m0 0V8.25m0 11.25H8.25'} />
-            </svg>
-            {trend.value}
-          </span>
+            {icon}
+          </div>
         )}
       </div>
-      <p style={{ fontSize: '24px', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>{value}</p>
-      <p style={{ fontSize: '13px', color: '#737373', margin: '2px 0 0' }}>{title}</p>
-      {subtitle && <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '4px 0 0' }}>{subtitle}</p>}
+
+      <p style={{
+        fontSize: '28px',
+        fontWeight: 700,
+        color: valueColor || '#0a0a0a',
+        letterSpacing: '-0.03em',
+        margin: 0,
+        lineHeight: 1.1,
+      }}>
+        {value}
+      </p>
+
+      {subtitle && (
+        <p style={{ fontSize: '12px', color: '#a3a3a3', margin: 0 }}>{subtitle}</p>
+      )}
+
+      {trend && (
+        <span style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          alignSelf: 'flex-start',
+          gap: '4px',
+          fontSize: '12px',
+          fontWeight: 500,
+          padding: '3px 10px',
+          borderRadius: '999px',
+          backgroundColor: trend.positive ? '#f0fdf4' : '#fef2f2',
+          color: trend.positive ? '#16a34a' : '#dc2626',
+          marginTop: '2px',
+        }}>
+          {trend.value}
+        </span>
+      )}
     </div>
   )
 }

@@ -1,55 +1,43 @@
-# PLAN_TAREA.md — Refactor Vertical Slice & Alineación Maestra
+# PLAN_TAREA.md — Dashboard Centro de Mando (Fase 2)
 
-Tras investigar a fondo el proyecto (incluyendo `OBSERVACIONES.md` y el `Plan Maestro: Agente IA WhatsApp`), he detectado puntos de mejora cruciales para evitar "incongruencias a futuro" y asegurar el éxito total de la arquitectura.
+## Tarea Completada
+Transformación del Dashboard de Finova en un **Centro de Mando financiero** con métricas contextuales, visualización avanzada, lista de estado de ventures y alertas inteligentes horizontales.
 
-## Tarea de Antigravity
-Refactorizar a **Strict Vertical Slice** y consolidar las bases del proyecto (Auth, BD y Documentación) para que el futuro Agente IA de WhatsApp se construya sobre cimientos sólidos.
+## Cambios Realizados
 
-## Análisis de Impacto (Investigación Part-by-Part)
+### Componentes Modificados
+- **`MetricCard.tsx`**: Rediseño — título en uppercase arriba del valor, badges de tendencia contextuales ("vs mes anterior"), subtítulos descriptivos.
+- **`MonthlyChart.tsx`**: Migración a `ComposedChart` — barras de ingresos (verde) y gastos (rojo) + línea punteada de "Flujo libre". Colores semánticos.
+- **`VentureROIChart.tsx`**: Título accionable "¿A cuál meterle más? — ranking por ROI".
+- **`SmartAlerts.tsx`**: Rediseño a tarjetas horizontales en grid con título, descripción y botón de acción (Analizar/Escalar/Revisar).
+- **`DashboardView.tsx`**: Reestructuración completa — Header "Centro de mando", métricas con tendencias, layout de 3 filas (Charts, ROI+StatusList, Alertas) y **Guía de Indicadores** (Footer UX con leyenda de colores).
 
-### 1. Estado del Auth (401)
-Aunque mencionas que ya puedes operar con éxito, mi lectura del código revela fugas de seguridad:
-- **`useVentures.ts`**: `fetch` y `create` están bien, pero `updateVenture` (líneas 65-68) y `deleteVenture` (líneas 75-78) **NO** envían el token.
-- **`VentureDetail.tsx`**: Ninguna llamada (GET, PUT, DELETE) incluye el token (líneas 27, 40, 50).
-- **Impacto**: Las operaciones de edición/borrado fallarán silenciosamente o con error 401 pronto.
+### Componentes Nuevos
+- **`VentureStatusList.tsx`**: Lista vertical de ventures con dot de salud (10px), tipo, tiempo activo, ROI% y badges de acción con borde (`outline`) para mejor contraste (Escalar/Mantener/Vigilar/Revisar/En rojo).
+- **Guía de Indicadores**: Sección informativa al final del dashboard detallando el significado semántico de cada color (Verde, Amarillo, Rojo, Azul, Gris).
 
-### 2. Inconsistencia de Base de Datos
-- **Realidad (Código)**: Tablas `user_integrations` y `whatsapp_keywords`.
-- **Plan (CLAUDE.md)**: Tablas `whatsapp_configs` y `keywords`.
-- **Riesgo**: El Agente IA no podrá consultar la configuración si los agentes de ayuda (como yo) leen el nombre de tabla equivocado en `CLAUDE.md`.
+### Métricas del Dashboard
+| Métrica | Descripción |
+|---------|-------------|
+| Flujo libre este mes | Ingresos - Gastos del mes actual, con % vs mes anterior |
+| Capital total activo | Suma de `invested` de ventures activos |
+| ROI promedio | Media de ROI de ventures activos |
+| Total invertido | Capital total con retornado como subtítulo |
 
-### 3. Vertical Slice Estricto
-- **Estado Actual**: Tenemos carpetas por feature, pero las `pages` están fuera.
-- **Meta**: Mover las vistas (`pages`) dentro de cada feature para que sean módulos 100% aislados.
-
----
-
-## Refinamiento Senior (Plan de "Éxito")
-
-### Fase 1: Alineación de Cimientos (Fixes & Docs) ✅ Completado
-- [x] **Unificar Auth**: Centralizada la inyección del token en `supabase.functions.invoke`.
-- [x] **Actualizar CLAUDE.md**: Reflejados los nombres de las tablas y funciones RPC.
-- [x] **Corregir Navegación**: Implementado Top-Down Nav y Slide-Down Menu.
-- [x] **Seguridad**: Saneamiento de .gitignore y rotación de claves documentada.
-
-### Fase 2: Reestructuración a Vertical Slice
-- [ ] **Mover Páginas**:
-    - `src/pages/VenturesPage.tsx` → `src/features/ventures/pages/VenturesPage.tsx`
-    - `src/pages/DashboardPage.tsx` → `src/features/dashboard/pages/DashboardPage.tsx`
-    - (Repetir para todos los módulos).
-- [ ] **Actualizar Router**: Limpiar `src/app/router.tsx` para importar desde las nuevas ubicaciones.
-- [ ] **Exportación Pública**: Usar `index.ts` en cada feature para exportar la página y componentes permitidos, protegiendo la lógica interna.
-
-### Fase 3: Configuración de Entorno (DX) ✅ Completado
-- [x] **Fix repomix**: Actualizados los paths para contexto real y exclusión de secretos.
-- [x] **VS Code**: Creado `.vscode/settings.json` para soporte Deno/React.
+### Pulido UX y Colores Semánticos
+- **Validación Visual**: Los valores de las métricas (`Flujo libre`, `ROI`) ahora usan colores dinámicos (Verde `#16a34a` para positivo, Rojo `#dc2626` para negativo).
+- **Consistencia del Mockup**: Leyenda de tipos en `TypeDistributionChart` ahora usa cuadrados sólidos en lugar de círculos.
+- **Accionabilidad**: Badges en la lista de ventures ahora tienen bordes de color para una apariencia más premium y "clickable".
 
 ---
 
-## Explicación Técnica (Lenguaje A1)
-- **Token de Auth**: Es como la llave de tu casa. Para mirar (fetch) ya tienes la llave, pero para cambiar los muebles (update) o tirarlos (delete) también necesitas mostrar la llave.
-- **Nombres de Tablas**: Si el mapa dice "Calle A" pero en la calle el cartel dice "Calle B", el cartero (IA) se pierde. Vamos a arreglar el mapa.
+## Próximos Pasos (Fase Futura)
+- [ ] Header con selector de periodo ("Este mes" / "3 meses" / "Todo")
+- [ ] Botón "Consejo IA" + Edge Function `ai-advisor`
+- [ ] Métrica "Gastos Hogar" (requiere UI de módulo Hogar)
+- [ ] Code splitting para reducir bundle size
 
 ---
 
-> **Estado**: Cimientos sólidos y seguridad saneada. Listos para empezar la **Refactorización a Vertical Slice** (Fase 2).
+> [!IMPORTANT]
+> **Build**: ✅ Exitoso. **TypeScript**: ✅ Sin errores. **Diseño**: Tema blanco mantenido.

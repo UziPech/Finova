@@ -26,7 +26,7 @@ Cada proyecto, negocio o cliente es una unidad con su propio ciclo de inversión
 | **Edge Functions (Backend)** | ✅ Desplegado | ventures, transactions, keywords, whatsapp-config, whatsapp-webhook |
 | **Auth (Frontend)** | ✅ Listo | Monochrome split layout (Supabase style) + Google OAuth |
 | **Layout (Frontend)** | ✅ Listo | Top-Down Nav layout, Slide-Down menú de navegación, unificación de Avatar/Settings |
-| **Dashboard (Frontend)** | ✅ Listo | 4 metric cards + Recharts bar chart + ventures en rojo |
+| **Dashboard (Frontend)** | ✅ Listo | Centro de Mando: 4 métricas contextuales + MonthlyChart compuesto + VentureROIChart + TypeDistributionChart + VentureStatusList + SmartAlerts |
 | **Ventures (Frontend)** | ✅ Listo | Cards grid, filtros, crear/editar modal, detalle con transacciones |
 | **Transactions (Frontend)** | ✅ Listo | Form con toggle income/expense, file upload, delete |
 | **Settings (Frontend)** | ✅ Listo | WhatsApp API config + Keywords manager |
@@ -70,15 +70,19 @@ Entidad `Transaction`:
 - `amount`, `description`, `date`
 - `evidence_url?` — foto de transferencia o referencia (Supabase Storage)
 
-### ✦ Dashboard global (MVP — Fase 1) ✅
+### ✦ Dashboard — Centro de Mando (Fase 2) ✅
 
-Vista de salud financiera general:
-- Inversión total vs retorno total (all-time)
-- ROI promedio de ventures activos
-- Venture con mejor ROI
-- Ventures en rojo (invertido > retornado)
-- Flujo del mes actual (ingresos vs gastos)
-- Historial mensual de ingresos (últimos 6 meses — Recharts)
+Vista de salud financiera general con decisiones accionables:
+- **Flujo libre este mes** (ingresos - gastos) con tendencia vs mes anterior
+- **Capital total activo** en ventures activos
+- **ROI promedio** con conteo de ventures positivos
+- **Total invertido** con retornado como subtítulo
+- Historial mensual: barras ingresos/gastos + línea flujo libre (ComposedChart)
+- Distribución de capital por tipo de venture (PieChart donut)
+- Ranking comparativo de ROI por venture (BarChart horizontal)
+- Lista de estado de ventures con badges de acción (Escalar/Mantener/Vigilar/Revisar)
+- Alertas inteligentes: tarjetas horizontales con acciones (riesgo, mejor venture, gasto elevado, diversificación)
+- **Guía de Indicadores**: Sección Footer UX con leyenda semántica de colores (Verde, Amarillo, Rojo, Azul, Gris).
 
 ### ✦ Settings — WhatsApp + Keywords (MVP — Fase 1) ✅
 
@@ -152,7 +156,7 @@ finova/
 │   │   │   │   └── types.ts
 │   │   │   │
 │   │   │   ├── dashboard/
-│   │   │   │   └── components/      ← DashboardView, MetricCard, MonthlyChart, RedVentures
+│   │   │   │   └── components/      ← DashboardView, MetricCard, MonthlyChart, VentureROIChart, TypeDistributionChart, VentureStatusList, SmartAlerts
 │   │   │   │
 │   │   │   └── settings/
 │   │   │       └── components/      ← WhatsAppSettings, KeywordsManager
@@ -453,11 +457,13 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 - [x] Agregar transacción (income / expense)
 - [x] Upload de evidencia (form con file input)
 
-### Dashboard
-- [x] 4 métricas globales (cards con animación)
-- [x] Indicador ventures en rojo
-- [x] Flujo del mes (ingresos vs gastos)
-- [x] Historial mensual últimos 6 meses (Recharts bar chart)
+### Dashboard — Centro de Mando
+- [x] 4 métricas contextuales (flujo libre, capital activo, ROI promedio, total invertido)
+- [x] MonthlyChart compuesto (barras + línea flujo libre)
+- [x] TypeDistributionChart (donut por tipo)
+- [x] VentureROIChart (ranking horizontal)
+- [x] VentureStatusList (badges de acción)
+- [x] SmartAlerts (tarjetas horizontales con acciones)
 
 ### Settings
 - [x] WhatsApp API config (token, phone_number_id, verify_token)

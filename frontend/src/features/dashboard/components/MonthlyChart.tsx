@@ -1,5 +1,15 @@
-// features/dashboard/components/MonthlyChart.tsx — Monochrome bar chart
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts'
+// features/dashboard/components/MonthlyChart.tsx — Ingresos vs Gastos + Flujo libre
+import {
+  ComposedChart,
+  Bar,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts'
 import type { Transaction } from '@backend/_shared/types'
 
 interface MonthlyChartProps {
@@ -10,6 +20,7 @@ interface MonthData {
   month: string
   income: number
   expense: number
+  flujoLibre: number
 }
 
 const MONTH_NAMES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
@@ -30,10 +41,16 @@ function aggregateByMonth(transactions: Transaction[]): MonthData[] {
       .filter((t) => t.type === 'expense' && t.date.startsWith(key))
       .reduce((sum, t) => sum + t.amount, 0)
 
-    months.push({ month, income, expense })
+    months.push({ month, income, expense, flujoLibre: income - expense })
   }
 
   return months
+}
+
+const LEGEND_MAP: Record<string, string> = {
+  income: 'Ingresos',
+  expense: 'Gastos',
+  flujoLibre: 'Flujo libre',
 }
 
 export function MonthlyChart({ transactions }: MonthlyChartProps) {
@@ -51,18 +68,25 @@ export function MonthlyChart({ transactions }: MonthlyChartProps) {
       }}
     >
       <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: '0 0 16px' }}>
-        Flujo mensual — Últimos 6 meses
+        Ingresos vs gastos — últimos 6 meses
       </h3>
       <div style={{ height: '256px' }}>
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} barGap={4}>
+          <ComposedChart data={data} barGap={4}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" vertical={false} />
-            <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#737373' }} axisLine={false} tickLine={false} />
+            <XAxis
+              dataKey="month"
+              tick={{ fontSize: 12, fill: '#737373' }}
+              axisLine={false}
+              tickLine={false}
+            />
             <YAxis
               tick={{ fontSize: 12, fill: '#737373' }}
               axisLine={false}
               tickLine={false}
-              tickFormatter={(val: number) => val >= 1000 ? `${(val / 1000).toFixed(0)}k` : String(val)}
+              tickFormatter={(val: number) =>
+                val >= 1000 ? `$${(val / 1000).toFixed(0)}k` : `$${val}`
+              }
             />
             <Tooltip
               contentStyle={{
@@ -72,18 +96,27 @@ export function MonthlyChart({ transactions }: MonthlyChartProps) {
                 fontSize: '13px',
                 boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
               }}
-              formatter={(value, name) => [
+              formatter={(value: any, name: any) => [
                 `$${Number(value).toLocaleString('es-MX')}`,
-                name === 'income' ? 'Ingresos' : 'Gastos',
+                LEGEND_MAP[name] || name,
               ]}
             />
             <Legend
-              formatter={(value: string) => (value === 'income' ? 'Ingresos' : 'Gastos')}
+              formatter={(value: string) => LEGEND_MAP[value] || value}
               wrapperStyle={{ fontSize: '12px' }}
             />
-            <Bar dataKey="income" fill="#171717" radius={[6, 6, 0, 0]} />
-            <Bar dataKey="expense" fill="#d4d4d4" radius={[6, 6, 0, 0]} />
-          </BarChart>
+            <Bar dataKey="income" fill="#22c55e" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="expense" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            <Line
+              type="monotone"
+              dataKey="flujoLibre"
+              stroke="#171717"
+              strokeWidth={2}
+              strokeDasharray="6 3"
+              dot={{ r: 3, fill: '#171717', strokeWidth: 0 }}
+              activeDot={{ r: 5, fill: '#171717', strokeWidth: 0 }}
+            />
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
     </div>
