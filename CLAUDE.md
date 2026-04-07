@@ -22,7 +22,7 @@ Cada proyecto, negocio o cliente es una unidad con su propio ciclo de inversión
 | Módulo | Estado | Descripción |
 |--------|--------|-------------|
 | **Monorepo** | ✅ Listo | npm workspaces (`frontend/` + `backend/`) |
-| **Supabase Schema** | ✅ Listo | ventures, transactions, household_expenses, whatsapp_configs, keywords (con RLS) |
+| **Supabase Schema** | ✅ Listo | ventures, transactions, household_expenses, user_integrations, whatsapp_keywords (con RLS) |
 | **Edge Functions (Backend)** | ✅ Desplegado | ventures, transactions, keywords, whatsapp-config, whatsapp-webhook |
 | **Auth (Frontend)** | ✅ Listo | Monochrome split layout (Supabase style) + Google OAuth |
 | **Layout (Frontend)** | ✅ Listo | Sidebar dark, TopBar glass, settings dropdown, responsive |
@@ -198,8 +198,8 @@ finova/
 │       ├── 001_ventures.sql
 │       ├── 002_transactions.sql
 │       ├── 003_household_expenses.sql
-│       ├── 004_whatsapp_configs.sql
-│       └── 005_keywords.sql
+│       ├── 004_user_integrations.sql
+│       └── 005_whatsapp_keywords.sql
 │
 ├── CLAUDE.md                        ← Este archivo
 ├── repomix.config.json              ← Genera contexto para agentes
@@ -293,29 +293,35 @@ create table household_expenses (
 );
 ```
 
-### 004_whatsapp_configs.sql
+### 004_user_integrations.sql
 ```sql
-create table whatsapp_configs (
+create table user_integrations (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users not null unique,
-  access_token text not null,
-  phone_number_id text not null,
-  verify_token text not null,
+  user_id uuid references auth.users not null,
+  provider text not null,
+  config jsonb not null,
+  encrypted_token text,
+  is_active boolean default true,
   created_at timestamptz default now(),
-  updated_at timestamptz default now()
+  updated_at timestamptz default now(),
+  unique(user_id, provider)
 );
 ```
 
-### 005_keywords.sql
+### 005_whatsapp_keywords.sql
 ```sql
-create table keywords (
+create table whatsapp_keywords (
   id uuid primary key default gen_random_uuid(),
   user_id uuid references auth.users not null,
   keyword text not null,
-  type text check (type in ('income','expense')) not null,
+  maps_to text check (maps_to in ('income','expense')) not null,
   venture_id uuid references ventures(id) on delete set null,
   created_at timestamptz default now()
 );
+
+-- RPC Functions
+-- encrypt_token(p_token text, p_key text) returns text
+-- decrypt_token(p_encrypted_token text, p_key text) returns text
 ```
 
 ---
@@ -419,8 +425,8 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 - [x] Migration 001 aplicada (ventures + RLS)
 - [x] Migration 002 aplicada (transactions + RLS)
 - [x] Migration 003 aplicada (household_expenses — solo tabla)
-- [x] Migration 004 aplicada (whatsapp_configs + RLS)
-- [x] Migration 005 aplicada (keywords + RLS)
+- [x] Migration 004 aplicada (user_integrations + RLS)
+- [x] Migration 005 aplicada (whatsapp_keywords + RLS)
 - [x] Edge Functions desplegadas (ventures, transactions, keywords, whatsapp-config, whatsapp-webhook)
 - [x] Rate limiting en Edge Functions
 - [ ] Supabase Storage bucket para evidencias

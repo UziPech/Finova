@@ -9,15 +9,14 @@
     "copyToClipboard": false
   },
   "include": [
-    "apps/web/src/**/*.ts",
-    "apps/web/src/**/*.tsx",
-    "apps/api/functions/**/*.ts",
-    "packages/types/**/*.ts",
+    "frontend/src/**/*.ts",
+    "frontend/src/**/*.tsx",
+    "backend/**/*.ts",
     "supabase/migrations/**/*.sql",
     "CLAUDE.md",
     "PLAN_TAREA.md",
     "package.json",
-    "apps/web/package.json"
+    "frontend/package.json"
   ],
   "ignore": {
     "useGitignore": true,

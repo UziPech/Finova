@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '@/shared/lib/supabase'
 import { useTransactions } from '@/features/transactions/hooks/useTransactions'
+import { useAuthStore } from '@/features/auth/store'
 import { TransactionForm } from '@/features/transactions/components/TransactionForm'
 import { formatCurrency, formatDate, formatROI } from '@/shared/lib/formatters'
 import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS } from '@/shared/lib/constants'
@@ -17,6 +18,7 @@ export function VentureDetail() {
   const [loading, setLoading] = useState(true)
   const [showTxForm, setShowTxForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
+  const session = useAuthStore((s) => s.session)
 
   const { transactions, loading: txLoading, fetchTransactions, createTransaction, deleteTransaction } = useTransactions(id)
 
@@ -24,22 +26,28 @@ export function VentureDetail() {
     if (!id) return
     const fetchVenture = async () => {
       setLoading(true)
+      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
       const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
         method: 'GET',
+        headers,
       })
       if (error || !data) { navigate('/ventures'); return }
       setVenture(data.data)
       setLoading(false)
     }
-    fetchVenture()
-    fetchTransactions(id)
-  }, [id, navigate, fetchTransactions])
+    if (session?.access_token) {
+      fetchVenture()
+      fetchTransactions(id)
+    }
+  }, [id, navigate, fetchTransactions, session?.access_token])
 
   const handleEditVenture = async (input: CreateVentureInput) => {
     if (!id) return
+    const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
     const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
       method: 'PUT',
       body: input,
+      headers,
     })
     if (error) throw new Error(error.message || 'Error updating venture')
     setVenture(data.data)
@@ -47,8 +55,10 @@ export function VentureDetail() {
 
   const handleDeleteVenture = async () => {
     if (!id || !confirm('¿Eliminar este venture y todas sus transacciones?')) return
+    const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
     await supabase.functions.invoke(`ventures/${id}`, {
       method: 'DELETE',
+      headers,
     })
     navigate('/ventures')
   }

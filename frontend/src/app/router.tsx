@@ -2,12 +2,12 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { Layout } from './Layout'
 import { ProtectedRoute } from './ProtectedRoute'
-import AuthPage from '../pages/AuthPage'
-import DashboardPage from '../pages/DashboardPage'
-import VenturesPage from '../pages/VenturesPage'
-import VentureDetailPage from '../pages/VentureDetailPage'
-import SettingsWhatsAppPage from '../pages/SettingsWhatsAppPage'
-import SettingsKeywordsPage from '../pages/SettingsKeywordsPage'
+import AuthPage from '../features/auth/pages/AuthPage'
+import DashboardPage from '../features/dashboard/pages/DashboardPage'
+import VenturesPage from '../features/ventures/pages/VenturesPage'
+import VentureDetailPage from '../features/ventures/pages/VentureDetailPage'
+import SettingsWhatsAppPage from '../features/settings/pages/SettingsWhatsAppPage'
+import SettingsKeywordsPage from '../features/settings/pages/SettingsKeywordsPage'
 
 export const router = createBrowserRouter([
   {

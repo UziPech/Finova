@@ -62,9 +62,11 @@ export function useVentures() {
   }
 
   const updateVenture = async (id: string, input: Partial<UpdateVentureInput>) => {
+    const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
     const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
       method: 'PUT',
       body: input,
+      headers,
     })
 
     if (error) throw new Error(error.message || 'Error updating venture')
@@ -73,8 +75,10 @@ export function useVentures() {
   }
 
   const deleteVenture = async (id: string) => {
+    const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
     const { error } = await supabase.functions.invoke(`ventures/${id}`, {
       method: 'DELETE',
+      headers,
     })
 
     if (error) {

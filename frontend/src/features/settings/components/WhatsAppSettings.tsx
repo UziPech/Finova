@@ -1,6 +1,6 @@
-// features/settings/components/WhatsAppSettings.tsx — Configuración monocromática
 import { useState, useEffect, type FormEvent } from 'react'
 import { supabase } from '@/shared/lib/supabase'
+import { useAuthStore } from '@/features/auth/store'
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -23,11 +23,14 @@ export function WhatsAppSettings() {
   const [loading, setLoading] = useState(true)
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const session = useAuthStore((s) => s.session)
 
   useEffect(() => {
     const fetchSettings = async () => {
-      const { data, error } = await supabase.functions.invoke('user-settings', {
+      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
+      const { data, error } = await supabase.functions.invoke('user-settings/integrations', {
         method: 'GET',
+        headers,
       })
       if (!error && data) {
         const d = data.data
@@ -39,8 +42,12 @@ export function WhatsAppSettings() {
       }
       setLoading(false)
     }
-    fetchSettings()
-  }, [])
+    if (session?.access_token) {
+      fetchSettings()
+    } else {
+      setLoading(false)
+    }
+  }, [session?.access_token])
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
@@ -56,9 +63,11 @@ export function WhatsAppSettings() {
         body.whatsapp_access_token = accessToken
       }
 
-      const { error } = await supabase.functions.invoke('user-settings', {
+      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
+      const { error } = await supabase.functions.invoke('user-settings/integrations', {
         method: 'PUT',
         body,
+        headers,
       })
       
       if (error) {

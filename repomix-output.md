@@ -53,6 +53,28 @@ package.json
 
 # Files
 
+## File: package.json
+````json
+ 1: {
+ 2:   "name": "finova-monorepo",
+ 3:   "version": "0.1.0",
+ 4:   "private": true,
+ 5:   "workspaces": [
+ 6:     "frontend",
+ 7:     "backend"
+ 8:   ],
+ 9:   "scripts": {
+10:     "dev": "npm run dev --workspace=frontend",
+11:     "build": "npm run build --workspace=frontend",
+12:     "lint": "npm run lint --workspace=frontend",
+13:     "ctx": "repomix && echo '✦ Contexto de Finova generado → repomix-output.md'"
+14:   },
+15:   "devDependencies": {
+16:     "repomix": "^1.13.1"
+17:   }
+18: }
+````
+
 ## File: CLAUDE.md
 ````markdown
   1: # CLAUDE.md — Finova
@@ -522,26 +544,4 @@ package.json
 465: 2. **Deploy Vercel** — Configurar env vars + CI/CD
 466: 3. **Hogar (Fase 2)** — UI de gastos compartidos (esquema ya existe)
 467: 4. **Webhooks (Fase 3)** — Mercado Pago + Stripe
-````
-
-## File: package.json
-````json
- 1: {
- 2:   "name": "finova-monorepo",
- 3:   "version": "0.1.0",
- 4:   "private": true,
- 5:   "workspaces": [
- 6:     "frontend",
- 7:     "backend"
- 8:   ],
- 9:   "scripts": {
-10:     "dev": "npm run dev --workspace=frontend",
-11:     "build": "npm run build --workspace=frontend",
-12:     "lint": "npm run lint --workspace=frontend",
-13:     "ctx": "repomix && echo '✦ Contexto de Finova generado → repomix-output.md'"
-14:   },
-15:   "devDependencies": {
-16:     "repomix": "^1.13.1"
-17:   }
-18: }
 ````
