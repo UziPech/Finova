@@ -1,3 +1,5 @@
+import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
+
 // ── Inline CORS ──
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,7 +12,7 @@ function handleCors(req: Request): Response | null {
 }
 
 // ── Inline Rate Limit ──
-async function checkRateLimit(supabase: any, key: string, max = 60, window = 60) {
+async function checkRateLimit(supabase: SupabaseClient, key: string, max = 60, window = 60) {
   const { data, error } = await supabase.rpc('check_rate_limit', { p_key: key, p_max_requests: max, p_window_seconds: window })
   if (error) return { allowed: true, headers: { 'X-RateLimit-Limit': String(max) } }
   const r = data as { allowed: boolean; remaining: number; reset_at: string }
@@ -24,7 +26,7 @@ async function checkRateLimit(supabase: any, key: string, max = 60, window = 60)
   return { allowed: true, headers: h }
 }
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+// Removed duplicate import
 
 Deno.serve(async (req: Request) => {
   const cors = handleCors(req)
@@ -147,8 +149,8 @@ Deno.serve(async (req: Request) => {
       // Recalcular totales del venture
       const { data: totals } = await admin.from('transactions').select('type, amount').eq('venture_id', body.venture_id)
       if (totals) {
-        const invested = totals.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0)
-        const returned = totals.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0)
+        const invested = totals.filter((t: { type: string; amount: number }) => t.type === 'expense').reduce((s: number, t: { type: string; amount: number }) => s + Number(t.amount), 0)
+        const returned = totals.filter((t: { type: string; amount: number }) => t.type === 'income').reduce((s: number, t: { type: string; amount: number }) => s + Number(t.amount), 0)
         await admin.from('ventures').update({ invested, returned }).eq('id', body.venture_id)
       }
 
@@ -174,8 +176,8 @@ Deno.serve(async (req: Request) => {
       if (existing?.venture_id) {
         const { data: totals } = await admin.from('transactions').select('type, amount').eq('venture_id', existing.venture_id)
         if (totals) {
-          const invested = totals.filter((t: any) => t.type === 'expense').reduce((s: number, t: any) => s + Number(t.amount), 0)
-          const returned = totals.filter((t: any) => t.type === 'income').reduce((s: number, t: any) => s + Number(t.amount), 0)
+          const invested = totals.filter((t: { type: string; amount: number }) => t.type === 'expense').reduce((s: number, t: { type: string; amount: number }) => s + Number(t.amount), 0)
+          const returned = totals.filter((t: { type: string; amount: number }) => t.type === 'income').reduce((s: number, t: { type: string; amount: number }) => s + Number(t.amount), 0)
           await admin.from('ventures').update({ invested, returned }).eq('id', existing.venture_id)
         }
       }

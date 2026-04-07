@@ -9,9 +9,11 @@ interface VentureROIChartProps {
 }
 
 export function VentureROIChart({ ventures }: VentureROIChartProps) {
-  const activeVentures = ventures.filter((v) => v.status === 'active' || v.status === 'paused')
+  const activeBusinessVentures = ventures.filter(
+    (v) => (v.status === 'active' || v.status === 'paused') && v.mode !== 'personal'
+  )
   
-  if (activeVentures.length === 0) {
+  if (activeBusinessVentures.length === 0) {
     return (
       <div 
         className="animate-fade-in"
@@ -28,12 +30,12 @@ export function VentureROIChart({ ventures }: VentureROIChartProps) {
           animationDelay: '250ms'
         }}
       >
-        <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>No hay ventures activos para medir el ROI</p>
+        <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>No hay negocios activos para medir el ROI</p>
       </div>
     )
   }
 
-  const data = activeVentures.map(v => {
+  const data = activeBusinessVentures.map(v => {
     const roi = calculateROI(v.invested, v.returned)
     return {
       name: v.name,

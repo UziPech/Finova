@@ -231,23 +231,23 @@ export function DashboardView() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 28px', fontSize: '12px', color: '#525252' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
-            Verde = ROI positivo, escalar
+            Verde = {isPersonalMajority ? 'Presupuesto saludable' : 'ROI positivo o rentable'}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#eab308' }} />
-            Amarillo = neutral, vigilar
+            Amarillo = {isPersonalMajority ? 'Presupuesto ajustado' : 'Neutral, vigilar'}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
-            Rojo = en pérdida, revisar
+            Rojo = {isPersonalMajority ? 'Presupuesto agotado' : 'En pérdida, revisar'}
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3b82f6' }} />
-            Azul = informativo
+            Azul = Informativo
           </span>
           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#a3a3a3' }} />
-            Gris = pausado o sin datos
+            Gris = Pausado o sin datos
           </span>
         </div>
       </div>

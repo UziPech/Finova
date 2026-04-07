@@ -6,8 +6,8 @@ import { useTransactions } from '@/features/transactions/hooks/useTransactions'
 import { useAuthStore } from '@/features/auth/store'
 import { TransactionForm } from '@/features/transactions/components/TransactionForm'
 import { formatCurrency, formatDate, formatROI } from '@/shared/lib/formatters'
-import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS } from '@/shared/lib/constants'
-import { calculateROI, breakEven, netProfit, ventureHealth } from '../utils'
+import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS, VENTURE_MODE_METRICS } from '@/shared/lib/constants'
+import { calculateROI, breakEven, netProfit, ventureHealth, calculateHealth } from '../utils'
 import { VentureForm } from './VentureForm'
 import { LoansSection } from '@/features/loans/components/LoansSection'
 import type { Venture, CreateVentureInput } from '../types'
@@ -87,13 +87,24 @@ export function VentureDetail() {
     )
   }
 
-  const roi = calculateROI(venture.invested, venture.returned)
-  const health = ventureHealth(roi)
+  const isPersonal = venture.mode === 'personal'
+  const metricValue = isPersonal 
+    ? calculateHealth(venture.invested, venture.returned)
+    : calculateROI(venture.invested, venture.returned)
+    
+  const health = isPersonal
+    ? (metricValue > 20 ? 'positive' : (metricValue > 0 ? 'neutral' : 'negative'))
+    : ventureHealth(metricValue)
+    
   const net = netProfit(venture.invested, venture.returned)
   const remaining = breakEven(venture.invested, venture.returned)
 
   const healthColor = health === 'positive' ? '#16a34a' : health === 'negative' ? '#dc2626' : '#525252'
-  const netColor = net >= 0 ? '#16a34a' : '#dc2626'
+  const netColor = isPersonal 
+    ? (venture.returned > venture.invested ? '#dc2626' : '#16a34a')
+    : (net >= 0 ? '#16a34a' : '#dc2626')
+
+  const labels = VENTURE_MODE_METRICS[venture.mode || 'business']
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -159,10 +170,14 @@ export function VentureDetail() {
       {/* Stats grid */}
       <div className="animate-fade-in grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ animationDelay: '50ms' }}>
         {[
-          { label: 'Invertido', value: formatCurrency(venture.invested), color: '#0a0a0a' },
-          { label: 'Retornado', value: formatCurrency(venture.returned), color: '#0a0a0a' },
-          { label: 'ROI', value: formatROI(roi), color: healthColor },
-          { label: net >= 0 ? 'Ganancia' : 'Por recuperar', value: formatCurrency(net >= 0 ? net : remaining), color: netColor },
+          { label: labels.invested, value: formatCurrency(venture.invested), color: '#0a0a0a' },
+          { label: labels.returned, value: formatCurrency(venture.returned), color: '#0a0a0a' },
+          { label: labels.roi, value: isPersonal ? `${metricValue}%` : formatROI(metricValue), color: healthColor },
+          { 
+            label: isPersonal ? 'Disponible' : (net >= 0 ? 'Ganancia' : 'Por recuperar'), 
+            value: formatCurrency(isPersonal ? Math.max(0, venture.invested - venture.returned) : (net >= 0 ? net : remaining)), 
+            color: netColor 
+          },
         ].map((stat) => (
           <div key={stat.label} style={{
             backgroundColor: '#fff', borderRadius: '14px', padding: '16px 20px',
@@ -232,7 +247,7 @@ export function VentureDetail() {
                 textDecoration: 'underline', textUnderlineOffset: '4px',
               }}
             >
-              Registrar la primera →
+              Registrar la primera
             </button>
           </div>
         ) : (
@@ -251,11 +266,11 @@ export function VentureDetail() {
                 <div style={{
                   width: '32px', height: '32px', borderRadius: '8px',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: '14px', flexShrink: 0,
+                  fontSize: '11px', flexShrink: 0, fontWeight: 700,
                   backgroundColor: tx.type === 'income' ? '#f0fdf4' : '#fef2f2',
                   color: tx.type === 'income' ? '#16a34a' : '#dc2626',
                 }}>
-                  {tx.type === 'income' ? '↑' : '↓'}
+                  {tx.type === 'income' ? 'IN' : 'OUT'}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: '13px', fontWeight: 500, color: '#0a0a0a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>

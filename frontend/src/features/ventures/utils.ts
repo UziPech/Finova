@@ -4,7 +4,7 @@ import type { VentureHealth } from './types'
 
 /** ROI en porcentaje. Nunca persistir en DB. */
 export const calculateROI = (invested: number, returned: number): number => {
-  if (invested === 0) return 0
+  if (invested === 0 || returned === 0) return 0
   return Number(((returned - invested) / invested * 100).toFixed(2))
 }
 

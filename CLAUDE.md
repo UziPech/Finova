@@ -34,6 +34,7 @@ Cada proyecto, negocio o cliente es una unidad con su propio ciclo de inversión
 | **Auth & Function Sync** | ✅ Listo | Inyección manual de `Authorization` header en hooks (resolve 401s) |
 | **Seguridad Webhook** | ✅ Listo | Verificación HMAC SHA-256 para mensajes de WhatsApp |
 | **Limpieza de código** | ✅ Listo | Archivos huérfanos eliminados y corrección de sintaxis en catches |
+| **Sistema de Préstamos** | ⚠️ Estabilizando | Edge Function `loans`, componente `DashboardLoans` y soporte para pagos semanales (vIn progress) |
 
 ### 🔲 Pendiente
 
@@ -42,6 +43,7 @@ Cada proyecto, negocio o cliente es una unidad con su propio ciclo de inversión
 | **Testing E2E** | 1 | Verificar flujo completo auth → ventures → transacciones en local |
 | **Deploy Vercel** | 1 | Configurar env vars y CI/CD desde `main` |
 | **Hogar** | 2 | UI de gastos compartidos (tablas SQL ya creadas, sin frontend) |
+| **Préstamos Avanzados** | 2 | Pagos semanales, Semáforo de Riesgo y Vista Ledger/Timeline |
 | **Webhook Mercado Pago** | 3 | Ingreso automático de pagos en ventures |
 | **Webhook Stripe** | 3 | Ingreso automático para clientes internacionales |
 | **Storage bucket** | 1 | Crear bucket `evidence` en Supabase para evidencias de transacciones |
@@ -98,6 +100,17 @@ Gastos compartidos del hogar entre ambos usuarios.
 - `RecurringExpense`: gastos fijos mensuales
 
 > **Regla:** No construir UI de Hogar en Fase 1. Solo existen las tablas SQL.
+
+### ✦ Préstamos — Gestión de Deuda (Fase 2) ⚠️
+Gestión de obligaciones financieras y cronogramas de pago.
+Entidad `Loan`:
+- `id`, `user_id`, `venture_id`
+- `name`, `principal`, `interest_rate`, `start_date`, `status`
+- `periodicity`: `monthly` | `weekly` (NUEVO)
+- `risk_level`: `low` | `medium` | `high` (NUEVO)
+
+Entidad `LoanPayment`:
+- `id`, `loan_id`, `amount`, `due_date`, `status` (`pending`, `paid`)
 
 ### ✦ Integraciones (Fase 3)
 - Webhook Mercado Pago → registra ingresos automáticamente en el venture correspondiente
@@ -195,6 +208,7 @@ finova/
 │   ├── functions/                   ← Edge Functions desplegadas
 │   │   ├── ventures/index.ts
 │   │   ├── transactions/index.ts
+│   │   ├── loans/index.ts           ← Gestión de préstamos y cuotas
 │   │   ├── keywords/index.ts
 │   │   ├── whatsapp-config/index.ts
 │   │   └── whatsapp-webhook/index.ts
@@ -203,9 +217,11 @@ finova/
 │       ├── 002_transactions.sql
 │       ├── 003_household_expenses.sql
 │       ├── 004_user_integrations.sql
-│       └── 005_whatsapp_keywords.sql
+│       ├── 005_whatsapp_keywords.sql
+│       └── 006_loans.sql                ← Préstamos y cronogramas
 │
 ├── CLAUDE.md                        ← Este archivo
+├── Sugerencias.md                   ← Roadmap y planes futuros detallados
 ├── repomix.config.json              ← Genera contexto para agentes
 └── package.json                     ← Workspace root
 ```
@@ -345,23 +361,23 @@ create table whatsapp_keywords (
 
 ## Cálculos de negocio
 
-```typescript
-// features/ventures/utils.ts — NUNCA persistir en DB
+### Ventures de Negocio (Business)
+Calculan ROI y Break Even tradicional.
 
+### Ventures Personales (Personal / Hogar)
+Métrica: **Salud de Presupuesto** ($1 - \text{Gasto}/\text{Presupuesto}$).
+Regla: Evitar el término ROI en modo personal para evitar confusiones (ej. -100% al gastar).
+
+```typescript
+// features/ventures/utils.ts
 export const calculateROI = (invested: number, returned: number): number => {
   if (invested === 0) return 0
   return Number(((returned - invested) / invested * 100).toFixed(2))
 }
 
-export const breakEven = (invested: number, returned: number): number => {
-  return Math.max(0, invested - returned)
-}
-
-export type VentureHealth = 'positive' | 'neutral' | 'negative'
-export const ventureHealth = (roi: number): VentureHealth => {
-  if (roi > 0) return 'positive'
-  if (roi === 0) return 'neutral'
-  return 'negative'
+export const calculateHealth = (budget: number, spent: number): number => {
+  if (budget === 0) return 0
+  return Math.max(0, ((budget - spent) / budget) * 100)
 }
 ```
 
@@ -385,8 +401,10 @@ export const ventureHealth = (roi: number): VentureHealth => {
 14. **Crucial:** El JWT de Supabase debe incluirse **manualmente** en `Authorization: Bearer` dentro de las llamadas a `supabase.functions.invoke`, ya que el SDK no lo persiste automáticamente en este método.
 15. Seguridad WhatsApp: Webhooks usan HMAC signature verification (Meta standard).
 16. **Seguridad Crítica:** Queda TERMINANTEMENTE PROHIBIDO realizar commit de archivos `.env`. Verificar siempre con `npm run ctx` que no se fuguen secretos en el contexto enviado a agentes.
-17. **Mantenimiento de Contexto:** Al finalizar cada turno de trabajo, el agente DEBE actualizar los checklists en `CLAUDE.md` y `PLAN_TAREA.md` para reflejar el progreso real.
+17. **Mantenimiento de Contexto:** Al finalizar cada turno de trabajo, el agente DEBE actualizar los checklists en `CLAUDE.md`, `PLAN_TAREA.md` e `implementation_plan.md`.
 18. **Garantía de Sincronía:** Antes de iniciar una nueva tarea, ejecutar `npm run ctx` para asegurar que el `repomix-output.md` sea el reflejo fiel del código actual.
+19. **Estética Monochrome & Sin Emojis:** Queda PROHIBIDO el uso de emojis en el frontend. Se debe usar una estética premium, monocromática y limpia (escala de grises, negro puro, blanco nieve).
+20. **Lenguaje Natural:** Priorizar claridad técnica y naturalidad en mensajes y etiquetas.
 
 ---
 
@@ -465,9 +483,16 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 - [x] VentureStatusList (badges de acción)
 - [x] SmartAlerts (riesgo, rendimiento, gastos, **notificación de fase idea/cerrado**)
 
-### Settings
-- [x] WhatsApp API config (token, phone_number_id, verify_token)
-- [x] Keywords manager (income/expense con venture opcional)
+### Mantenimiento de Contexto
+- [x] Actualización de `CLAUDE.md` con reglas de Emojis y Salud.
+- [x] Sincronización de `implementation_plan.md`, `task.md` y `Sugerencias.md`.
+
+### Módulo Préstamos (En curso)
+- [x] Edge Function `loans` básica.
+- [x] Componente `DashboardLoans`.
+- [ ] Soporte para periodicidad semanal.
+- [ ] Semáforo de riesgo e integración con flujo libre.
+- [ ] Vista Ledger / Timeline.
 
 ### Deploy
 - [ ] Variables de entorno configuradas en Vercel

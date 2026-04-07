@@ -1,8 +1,8 @@
 // features/ventures/components/VentureCard.tsx — Monochrome premium card
 import { useNavigate } from 'react-router-dom'
 import { formatCurrency, formatROI } from '@/shared/lib/formatters'
-import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS } from '@/shared/lib/constants'
-import { calculateROI, ventureHealth } from '../utils'
+import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS, VENTURE_MODE_METRICS } from '@/shared/lib/constants'
+import { calculateROI, ventureHealth, calculateHealth } from '../utils'
 import type { Venture } from '../types'
 
 interface VentureCardProps {
@@ -19,11 +19,22 @@ const statusDotColors: Record<string, string> = {
 
 export function VentureCard({ venture, delay = 0 }: VentureCardProps) {
   const navigate = useNavigate()
-  const roi = calculateROI(venture.invested, venture.returned)
-  const health = ventureHealth(roi)
+  const isPersonal = venture.mode === 'personal'
+  
+  const metricValue = isPersonal 
+    ? calculateHealth(venture.invested, venture.returned)
+    : calculateROI(venture.invested, venture.returned)
+    
+  // Para personal, health es positivo si queda mucho presupuesto. Para negocio, depende del ROI.
+  // Podríamos reutilizar ventureHealth de utils, o adaptarlo
+  const health = isPersonal
+    ? (metricValue > 20 ? 'positive' : (metricValue > 0 ? 'neutral' : 'negative'))
+    : ventureHealth(metricValue)
 
   const healthBg = health === 'positive' ? '#f0fdf4' : health === 'negative' ? '#fef2f2' : '#f5f5f5'
   const healthColor = health === 'positive' ? '#16a34a' : health === 'negative' ? '#dc2626' : '#525252'
+
+  const labels = VENTURE_MODE_METRICS[venture.mode || 'business']
 
   return (
     <button
@@ -73,19 +84,19 @@ export function VentureCard({ venture, delay = 0 }: VentureCardProps) {
           borderRadius: '8px',
           backgroundColor: healthBg,
           color: healthColor,
-        }}>
-          {formatROI(roi)}
+        }} title={labels.roi}>
+          {isPersonal ? `${metricValue}%` : formatROI(metricValue)}
         </span>
       </div>
 
       {/* Financials */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
         <div>
-          <p style={{ fontSize: '12px', color: '#737373', margin: '0 0 2px' }}>Invertido</p>
+          <p style={{ fontSize: '12px', color: '#737373', margin: '0 0 2px' }}>{labels.invested}</p>
           <p style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>{formatCurrency(venture.invested)}</p>
         </div>
         <div>
-          <p style={{ fontSize: '12px', color: '#737373', margin: '0 0 2px' }}>Retornado</p>
+          <p style={{ fontSize: '12px', color: '#737373', margin: '0 0 2px' }}>{labels.returned}</p>
           <p style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>{formatCurrency(venture.returned)}</p>
         </div>
       </div>

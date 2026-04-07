@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
-import type { CreateVentureInput, VentureType, VentureStatus, Venture } from '../types'
-import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS } from '@/shared/lib/constants'
+import type { CreateVentureInput, VentureType, VentureStatus, Venture, VentureMode } from '../types'
+import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS, VENTURE_MODE_LABELS } from '@/shared/lib/constants'
 import { SlidePanel } from '@/shared/components/SlidePanel'
 
 interface VentureFormProps {
@@ -27,6 +27,7 @@ export function VentureForm({ onSubmit, onClose, venture, title }: VentureFormPr
   const formTitle = title || (venture ? 'Editar venture' : 'Nuevo venture')
   const [name, setName] = useState(venture?.name || '')
   const [type, setType] = useState<VentureType>(venture?.type || 'software')
+  const [mode, setMode] = useState<VentureMode>(venture?.mode || 'business')
   const [status, setStatus] = useState<VentureStatus>(venture?.status || 'idea')
   const [invested, setInvested] = useState(venture?.invested?.toString() || '0')
   const [returned, setReturned] = useState(venture?.returned?.toString() || '0')
@@ -43,6 +44,7 @@ export function VentureForm({ onSubmit, onClose, venture, title }: VentureFormPr
       await onSubmit({
         name: name.trim(),
         type,
+        mode,
         status,
         invested: parseFloat(invested) || 0,
         returned: parseFloat(returned) || 0,
@@ -96,6 +98,19 @@ export function VentureForm({ onSubmit, onClose, venture, title }: VentureFormPr
               {Object.entries(VENTURE_STATUS_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
             </select>
           </div>
+        </div>
+
+        <div>
+          <label style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#a3a3a3', marginBottom: '6px' }}>Modo de Operación</label>
+          <select
+            value={mode}
+            onChange={(e) => setMode(e.target.value as VentureMode)}
+            style={{ ...inputStyle, cursor: 'pointer' }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = '#555'; e.currentTarget.style.boxShadow = '0 0 0 2px rgba(82,82,82,0.3)' }}
+            onBlur={(e) => { e.currentTarget.style.borderColor = '#2a2a2a'; e.currentTarget.style.boxShadow = 'none' }}
+          >
+            {Object.entries(VENTURE_MODE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+          </select>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>

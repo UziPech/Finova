@@ -1,6 +1,6 @@
 // features/dashboard/components/VentureStatusList.tsx
 import type { Venture } from '@backend/_shared/types'
-import { calculateROI, ventureHealth } from '@/features/ventures/utils'
+import { calculateROI, ventureHealth, calculateHealth } from '@/features/ventures/utils'
 import { formatROI } from '@/shared/lib/formatters'
 import { VENTURE_TYPE_LABELS } from '@/shared/lib/constants'
 
@@ -15,18 +15,25 @@ type ActionBadge = {
   border: string
 }
 
-function getActionBadge(roi: number, diffDays: number, status: string): ActionBadge {
+function getActionBadge(roi: number, diffDays: number, status: string, isPersonal: boolean): ActionBadge {
   if (status === 'paused')
     return { label: 'Pausado', bg: '#f5f5f5', color: '#737373', border: '#e5e5e5' }
-  if (roi < -30 || (roi < 0 && diffDays > 120))
-    return { label: 'Revisar', bg: '#fef2f2', color: '#dc2626', border: '#fecaca' }
-  if (roi < 0)
-    return { label: 'En rojo', bg: '#fef2f2', color: '#ef4444', border: '#fecaca' }
-  if (roi >= 0 && roi < 15)
-    return { label: 'Vigilar', bg: '#fefce8', color: '#a16207', border: '#fde68a' }
-  if (roi >= 15 && roi < 40)
-    return { label: 'Mantener', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' }
-  return { label: 'Escalar', bg: '#f0fdf4', color: '#15803d', border: '#86efac' }
+    
+  if (isPersonal) {
+    if (roi < 10) return { label: 'Crítico', bg: '#fef2f2', color: '#dc2626', border: '#fecaca' }
+    if (roi < 30) return { label: 'Cuidado', bg: '#fefce8', color: '#a16207', border: '#fde68a' }
+    return { label: 'Saludable', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' }
+  } else {
+    if (roi < -30 || (roi < 0 && diffDays > 120))
+      return { label: 'Revisar', bg: '#fef2f2', color: '#dc2626', border: '#fecaca' }
+    if (roi < 0)
+      return { label: 'En rojo', bg: '#fef2f2', color: '#ef4444', border: '#fecaca' }
+    if (roi >= 0 && roi < 15)
+      return { label: 'Vigilar', bg: '#fefce8', color: '#a16207', border: '#fde68a' }
+    if (roi >= 15 && roi < 40)
+      return { label: 'Mantener', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' }
+    return { label: 'Escalar', bg: '#f0fdf4', color: '#15803d', border: '#86efac' }
+  }
 }
 
 function getDotColor(health: string): string {
@@ -53,19 +60,37 @@ export function VentureStatusList({ ventures }: VentureStatusListProps) {
   )
 
   const redCount = relevantVentures.filter((v) => {
-    const roi = calculateROI(v.invested, v.returned)
-    return roi < 0 && v.status === 'active'
+    const isPersonal = v.mode === 'personal'
+    if (isPersonal) {
+      const health = calculateHealth(v.invested, v.returned)
+      return health < 20 && v.status === 'active'
+    } else {
+      const roi = calculateROI(v.invested, v.returned)
+      return roi < 0 && v.status === 'active'
+    }
   }).length
 
   const ventureData = relevantVentures
     .map((v) => {
-      const roi = calculateROI(v.invested, v.returned)
-      const health = ventureHealth(roi)
+      const isPersonal = v.mode === 'personal'
+      const metricValue = isPersonal 
+        ? calculateHealth(v.invested, v.returned)
+        : calculateROI(v.invested, v.returned)
+        
+      const health = isPersonal
+        ? (metricValue > 20 ? 'positive' : (metricValue > 0 ? 'neutral' : 'negative'))
+        : ventureHealth(metricValue)
+        
       const days = getDaysActive(v.start_date)
-      const badge = getActionBadge(roi, days, v.status)
-      return { venture: v, roi, health, days, badge }
+      const badge = getActionBadge(metricValue, days, v.status, isPersonal)
+      return { venture: v, isPersonal, metricValue, health, days, badge }
     })
-    .sort((a, b) => b.roi - a.roi)
+    .sort((a, b) => {
+      // Sort personal by ascending health, business by ascending ROI to show worst first?
+      // Wait, original sorted by descending ROI: b.roi - a.roi. 
+      // If we want best first:
+      return b.metricValue - a.metricValue
+    })
 
   if (ventureData.length === 0) {
     return (
@@ -134,7 +159,7 @@ export function VentureStatusList({ ventures }: VentureStatusListProps) {
 
       {/* List */}
       <div style={{ display: 'flex', flexDirection: 'column' }}>
-        {ventureData.map(({ venture, roi, health, days, badge }, idx) => (
+        {ventureData.map(({ venture, isPersonal, metricValue, health, days, badge }, idx) => (
           <div
             key={venture.id}
             style={{
@@ -176,7 +201,7 @@ export function VentureStatusList({ ventures }: VentureStatusListProps) {
               </p>
             </div>
 
-            {/* ROI */}
+            {/* ROI / Health */}
             <span
               style={{
                 fontSize: '14px',
@@ -190,7 +215,7 @@ export function VentureStatusList({ ventures }: VentureStatusListProps) {
                 whiteSpace: 'nowrap',
               }}
             >
-              {formatROI(roi)}
+              {isPersonal ? `${metricValue}%` : formatROI(metricValue)}
             </span>
 
             {/* Action Badge */}

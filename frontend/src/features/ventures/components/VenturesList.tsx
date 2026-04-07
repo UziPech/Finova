@@ -154,7 +154,7 @@ export function VenturesList() {
                 padding: 0,
               }}
             >
-              Crear tu primer venture →
+              Crear tu primer venture
             </button>
           )}
         </div>

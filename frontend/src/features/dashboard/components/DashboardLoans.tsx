@@ -14,11 +14,23 @@ export function DashboardLoans() {
   const activeLoans = loans.filter(l => l.status !== 'paid')
 
   if (loading) {
-    return <div className="skeleton" style={{ height: '320px', borderRadius: '14px', width: '100%' }} />
+    return <div className="skeleton" style={{ height: '140px', borderRadius: '14px', width: '100%' }} />
   }
 
   if (activeLoans.length === 0) {
-    return null // Si no hay préstamos activos, no mostramos la sección para evitar ruido
+    return (
+      <div style={{
+        backgroundColor: '#fff', borderRadius: '14px', padding: '20px', border: '1px solid #e5e5e5', width: '100%',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '140px'
+      }}>
+        <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: '0 0 4px' }}>
+          Préstamos y Financiación
+        </h3>
+        <p style={{ fontSize: '13px', color: '#737373', margin: 0 }}>
+          No tienes préstamos activos por el momento.
+        </p>
+      </div>
+    )
   }
 
   return (
