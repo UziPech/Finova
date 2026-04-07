@@ -9,6 +9,7 @@ export function useVentures() {
   const ventures = useVenturesStore((s) => s.ventures)
   const loading = useVenturesStore((s) => s.loading)
   const error = useVenturesStore((s) => s.error)
+  const hasFetched = useVenturesStore((s) => s.hasFetched)
   const setVentures = useVenturesStore((s) => s.setVentures)
   const addVentureAction = useVenturesStore((s) => s.addVenture)
   const updateVentureAction = useVenturesStore((s) => s.updateVenture)
@@ -19,7 +20,8 @@ export function useVentures() {
   // Observar sesión del auth store para saber cuándo está lista
   const session = useAuthStore((s) => s.session)
 
-  const fetchVentures = useCallback(async () => {
+  const fetchVentures = useCallback(async (force = false) => {
+    if (hasFetched && !force) return
     setLoading(true)
     setError(null)
 
@@ -39,14 +41,14 @@ export function useVentures() {
     }
     setVentures(data?.data ?? [])
     setLoading(false)
-  }, [session, setLoading, setError, setVentures])
+  }, [session, setLoading, setError, setVentures, hasFetched])
 
-  // Solo hacer fetch cuando la sesión esté disponible
+  // Solo hacer fetch cuando la sesión esté disponible y no tengamos datos
   useEffect(() => {
-    if (session?.access_token) {
+    if (session?.access_token && !hasFetched) {
       fetchVentures()
     }
-  }, [session?.access_token, fetchVentures])
+  }, [session?.access_token, hasFetched, fetchVentures])
 
   const createVenture = async (input: CreateVentureInput) => {
     const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined

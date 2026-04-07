@@ -3,12 +3,14 @@ import { useState, useCallback } from 'react'
 import { supabase } from '@/shared/lib/supabase'
 import type { Transaction, CreateTransactionInput } from '../types'
 import { useAuthStore } from '@/features/auth/store'
+import { useVentures } from '@/features/ventures/hooks/useVentures'
 
 export function useTransactions(ventureId?: string) {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const { session } = useAuthStore()
+  const { fetchVentures } = useVentures()
 
   const fetchTransactions = useCallback(async (vid?: string) => {
     const id = vid || ventureId
@@ -65,6 +67,10 @@ export function useTransactions(ventureId?: string) {
 
     if (invokeError) throw new Error(invokeError.message || 'Error creating transaction')
     setTransactions((prev) => [responseData.data, ...prev])
+    
+    // Forzar actualización de ventures para reflejar los nuevos totales (Invertido/Retornado)
+    fetchVentures(true)
+
     return responseData.data
   }
 
@@ -80,6 +86,9 @@ export function useTransactions(ventureId?: string) {
       throw new Error(error.message || 'Error deleting transaction')
     }
     setTransactions((prev) => prev.filter((t) => t.id !== id))
+    
+    // Forzar actualización de ventures
+    fetchVentures(true)
   }
 
   return {

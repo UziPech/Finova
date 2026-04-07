@@ -115,17 +115,33 @@ export function SmartAlerts({ ventures, transactions }: SmartAlertsProps) {
     }
   }
 
-  // 4. Alerta Azul: Diversificación
-  if (activeVentures.length === 1) {
+  // 5. Alerta Gris/Azul: Proyectos en fase de IDEA o CERRADO
+  const ideaCount = ventures.filter((v) => v.status === 'idea').length
+  const closedCount = ventures.filter((v) => v.status === 'closed').length
+
+  if (ideaCount > 0) {
     alerts.push({
-      id: 'blue_div',
-      title: 'Solo tienes 1 venture activo',
-      description: 'Diversificar reduce riesgo. Considera abrir un nuevo proyecto.',
-      actionLabel: 'Explorar ↗',
-      borderColor: '#3b82f6',
-      bgColor: '#E6F1FB',
-      titleColor: '#1e3a5f',
-      actionColor: '#1d4ed8',
+      id: 'info_idea',
+      title: `${ideaCount} proyecto${ideaCount > 1 ? 's' : ''} en fase de idea`,
+      description: 'No aparecen en ROI aún. Cámbialos a "Activo" para ver sus métricas.',
+      actionLabel: 'Ver proyectos ↗',
+      borderColor: '#a3a3a3',
+      bgColor: '#fafafa',
+      titleColor: '#525252',
+      actionColor: '#737373',
+    })
+  }
+
+  if (closedCount > 0) {
+    alerts.push({
+      id: 'info_closed',
+      title: `${closedCount} proyecto${closedCount > 1 ? 's' : ''} cerrado${closedCount > 1 ? 's' : ''}`,
+      description: 'Histórico guardado pero excluido de métricas actuales.',
+      actionLabel: 'Ver archivo ↗',
+      borderColor: '#a3a3a3',
+      bgColor: '#f5f5f5',
+      titleColor: '#737373',
+      actionColor: '#a3a3a3',
     })
   }
 

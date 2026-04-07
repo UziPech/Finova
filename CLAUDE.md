@@ -81,7 +81,7 @@ Vista de salud financiera general con decisiones accionables:
 - Distribución de capital por tipo de venture (PieChart donut)
 - Ranking comparativo de ROI por venture (BarChart horizontal)
 - Lista de estado de ventures con badges de acción (Escalar/Mantener/Vigilar/Revisar)
-- Alertas inteligentes: tarjetas horizontales con acciones (riesgo, mejor venture, gasto elevado, diversificación)
+- Alertas inteligentes: tarjetas horizontales con acciones (riesgo, mejor venture, gasto elevado, diversificación, **proyectos en fase de idea/cerrados**).
 - **Guía de Indicadores**: Sección Footer UX con leyenda semántica de colores (Verde, Amarillo, Rojo, Azul, Gris).
 
 ### ✦ Settings — WhatsApp + Keywords (MVP — Fase 1) ✅
@@ -463,7 +463,7 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 - [x] TypeDistributionChart (donut por tipo)
 - [x] VentureROIChart (ranking horizontal)
 - [x] VentureStatusList (badges de acción)
-- [x] SmartAlerts (tarjetas horizontales con acciones)
+- [x] SmartAlerts (riesgo, rendimiento, gastos, **notificación de fase idea/cerrado**)
 
 ### Settings
 - [x] WhatsApp API config (token, phone_number_id, verify_token)
