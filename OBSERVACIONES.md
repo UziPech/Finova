@@ -8,7 +8,7 @@
 
 ## 1. Bugs Críticos
 
-### 1.1 Authorization headers faltantes en `useVentures.ts`
+### 1.1 Authorization headers faltantes en `useVentures.ts` ✅ RESOLVIENDO
 
 **Archivo:** `frontend/src/features/ventures/hooks/useVentures.ts`
 **Líneas:** ~64-84
@@ -25,7 +25,7 @@
 
 ---
 
-### 1.2 Authorization headers faltantes en `VentureDetail.tsx`
+### 1.2 Authorization headers faltantes en `VentureDetail.tsx` ✅ RESOLVIENDO
 
 **Archivo:** `frontend/src/features/ventures/components/VentureDetail.tsx`
 **Líneas:** ~38-54
@@ -58,7 +58,7 @@ Pero el edge function `user-settings/index.ts` solo maneja sub-rutas:
 
 ---
 
-### 1.4 `repomix.config.json` con rutas stale
+### 1.4 `repomix.config.json` con rutas stale ✅ RESUELTO
 
 **Archivo:** `repomix.config.json`
 
@@ -84,7 +84,7 @@ backend/_shared/types.ts
 
 ## 2. Bugs Potenciales / Inconsistencias
 
-### 2.1 Tablas de base de datos no coinciden entre CLAUDE.md y el código
+### 2.1 Tablas de base de datos no coinciden entre CLAUDE.md y el código ✅ RESUELTO (Docs actualizadas)
 
 **CLAUDE.md dice:**
 - Tabla `whatsapp_configs`

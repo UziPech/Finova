@@ -25,6 +25,11 @@ build/
 .env.*
 !.env.example
 
+# Context and temporary files
+repomix-output.md
+PLAN_TAREA.md
+OBSERVACIONES.md
+
 # Logs
 logs
 *.log

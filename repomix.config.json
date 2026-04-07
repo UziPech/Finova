@@ -26,10 +26,13 @@
       "dist/**",
       ".env*",
       "repomix-output.md",
+      "PLAN_TAREA.md",
+      "OBSERVACIONES.md",
       "**/*.test.ts",
       "**/*.spec.ts",
       "**/*.test.tsx",
-      "apps/api/.env"
+      "backend/.env*",
+      "frontend/.env*"
     ]
   },
   "security": {

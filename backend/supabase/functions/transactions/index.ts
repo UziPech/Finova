@@ -58,7 +58,8 @@ Deno.serve(async (req: Request) => {
       let query = supabase.from('transactions').select('*').order('date', { ascending: false })
       if (ventureId) query = query.eq('venture_id', ventureId)
       const { data, error } = await query
-      if (error) return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })\n      return new Response(JSON.stringify({ data }), { status: 200, headers: rh })
+      if (error) return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })
+      return new Response(JSON.stringify({ data }), { status: 200, headers: rh })
     }
 
     // POST — crear transacción

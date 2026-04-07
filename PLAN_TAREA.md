@@ -26,10 +26,11 @@ Aunque mencionas que ya puedes operar con éxito, mi lectura del código revela 
 
 ## Refinamiento Senior (Plan de "Éxito")
 
-### Fase 1: Alineación de Cimientos (Fixes & Docs)
-- [ ] **Unificar Auth**: Centralizar la inyección del token en `supabase.functions.invoke` para que NUNCA se nos olvide (en hooks y componentes).
-- [ ] **Actualizar CLAUDE.md**: Cambiar la documentación de SQL para que refleje los nombres reales de las tablas (`user_integrations`, `whatsapp_keywords`) y documentar las funciones RPC `encrypt_token`.
-- [ ] **Corregir WhatsApp Settings**: Cambiar el endpoint en el frontend para que apunte a `user-settings/integrations`.
+### Fase 1: Alineación de Cimientos (Fixes & Docs) ✅ Completado
+- [x] **Unificar Auth**: Centralizada la inyección del token en `supabase.functions.invoke`.
+- [x] **Actualizar CLAUDE.md**: Reflejados los nombres de las tablas y funciones RPC.
+- [x] **Corregir Navegación**: Implementado Top-Down Nav y Slide-Down Menu.
+- [x] **Seguridad**: Saneamiento de .gitignore y rotación de claves documentada.
 
 ### Fase 2: Reestructuración a Vertical Slice
 - [ ] **Mover Páginas**:
@@ -39,9 +40,9 @@ Aunque mencionas que ya puedes operar con éxito, mi lectura del código revela 
 - [ ] **Actualizar Router**: Limpiar `src/app/router.tsx` para importar desde las nuevas ubicaciones.
 - [ ] **Exportación Pública**: Usar `index.ts` en cada feature para exportar la página y componentes permitidos, protegiendo la lógica interna.
 
-### Fase 3: Configuración de Entorno (DX)
-- [ ] **Fix repomix**: Actualizar `include` paths para que el contexto sea 100% real.
-- [ ] **VS Code**: Crear `.vscode/settings.json` para que el soporte de Deno no cause errores de tipado falsos.
+### Fase 3: Configuración de Entorno (DX) ✅ Completado
+- [x] **Fix repomix**: Actualizados los paths para contexto real y exclusión de secretos.
+- [x] **VS Code**: Creado `.vscode/settings.json` para soporte Deno/React.
 
 ---
 
@@ -51,4 +52,4 @@ Aunque mencionas que ya puedes operar con éxito, mi lectura del código revela 
 
 ---
 
-> **Estado**: Plan refinado tras lectura profunda. ¿Procedemos con la Fase 1?
+> **Estado**: Cimientos sólidos y seguridad saneada. Listos para empezar la **Refactorización a Vertical Slice** (Fase 2).

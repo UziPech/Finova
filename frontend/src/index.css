@@ -82,6 +82,10 @@ body {
   from { opacity: 0; transform: translateY(-12px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes panel-slide-down {
+  from { transform: translateY(-100%); }
+  to { transform: translateY(0); }
+}
 @keyframes slide-up {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
@@ -103,6 +107,9 @@ body {
 }
 .animate-slide-down {
   animation: slide-down 0.25s ease-out both;
+}
+.animate-panel-slide {
+  animation: panel-slide-down 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .animate-slide-up {
   animation: slide-up 0.3s ease-out both;

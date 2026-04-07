@@ -25,7 +25,7 @@ Cada proyecto, negocio o cliente es una unidad con su propio ciclo de inversión
 | **Supabase Schema** | ✅ Listo | ventures, transactions, household_expenses, user_integrations, whatsapp_keywords (con RLS) |
 | **Edge Functions (Backend)** | ✅ Desplegado | ventures, transactions, keywords, whatsapp-config, whatsapp-webhook |
 | **Auth (Frontend)** | ✅ Listo | Monochrome split layout (Supabase style) + Google OAuth |
-| **Layout (Frontend)** | ✅ Listo | Sidebar dark, TopBar glass, settings dropdown, responsive |
+| **Layout (Frontend)** | ✅ Listo | Top-Down Nav layout, Slide-Down menú de navegación, unificación de Avatar/Settings |
 | **Dashboard (Frontend)** | ✅ Listo | 4 metric cards + Recharts bar chart + ventures en rojo |
 | **Ventures (Frontend)** | ✅ Listo | Cards grid, filtros, crear/editar modal, detalle con transacciones |
 | **Transactions (Frontend)** | ✅ Listo | Form con toggle income/expense, file upload, delete |
@@ -380,6 +380,9 @@ export const ventureHealth = (roi: number): VentureHealth => {
 13. Todas las peticiones al backend van via `VITE_SUPABASE_URL/functions/v1/{edge-function}`
 14. **Crucial:** El JWT de Supabase debe incluirse **manualmente** en `Authorization: Bearer` dentro de las llamadas a `supabase.functions.invoke`, ya que el SDK no lo persiste automáticamente en este método.
 15. Seguridad WhatsApp: Webhooks usan HMAC signature verification (Meta standard).
+16. **Seguridad Crítica:** Queda TERMINANTEMENTE PROHIBIDO realizar commit de archivos `.env`. Verificar siempre con `npm run ctx` que no se fuguen secretos en el contexto enviado a agentes.
+17. **Mantenimiento de Contexto:** Al finalizar cada turno de trabajo, el agente DEBE actualizar los checklists en `CLAUDE.md` y `PLAN_TAREA.md` para reflejar el progreso real.
+18. **Garantía de Sincronía:** Antes de iniciar una nueva tarea, ejecutar `npm run ctx` para asegurar que el `repomix-output.md` sea el reflejo fiel del código actual.
 
 ---
 
@@ -432,6 +435,7 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 - [ ] Supabase Storage bucket para evidencias
 - [x] RLS verificado
 - [x] Verificación HMAC para WhatsApp Webhook
+- [x] **Saneamiento de seguridad** (Claves rotadas y .gitignore configurado)
 
 ### Auth
 - [x] Pantalla login / registro (monochrome split UI)
