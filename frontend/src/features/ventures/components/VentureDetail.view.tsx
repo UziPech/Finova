@@ -1,48 +1,31 @@
 // features/ventures/components/VentureDetail.tsx — Vista de detalle monochrome
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { supabase } from '@/shared/lib/supabase'
+
 import { useTransactions } from '@/features/transactions/hooks/useTransactions'
 import { useAuthStore } from '@/features/auth/store'
 import { TransactionForm } from '@/features/transactions/components/TransactionForm'
 import { formatCurrency, formatDate, formatROI } from '@/shared/lib/formatters'
-import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS, VENTURE_MODE_METRICS } from '@/shared/lib/constants'
-import { calculateROI, breakEven, netProfit, ventureHealth, calculateHealth } from '../utils'
+import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS } from '@/shared/lib/constants'
+import { useVentureDetail } from '../hooks/useVentureDetail'
 import { VentureForm } from './VentureForm'
-import { LoansSection } from '@/features/loans/components/LoansSection'
-import type { Venture, CreateVentureInput } from '../types'
+import { LoansSection } from '@/features/loans/components/LoansSection.view'
+
 
 export function VentureDetail() {
   const { id } = useParams<{ id: string }>()
-  const navigate = useNavigate()
-  const [venture, setVenture] = useState<Venture | null>(null)
-  const [loading, setLoading] = useState(true)
   const [showTxForm, setShowTxForm] = useState(false)
   const [showEditForm, setShowEditForm] = useState(false)
-  const session = useAuthStore((s) => s.session)
+  
+  const { venture, loading, metrics, handleEditVenture, handleDeleteVenture } = useVentureDetail(id)
+  const navigate = useNavigate()
 
   const { transactions, loading: txLoading, fetchTransactions, createTransaction, deleteTransaction, total, page, pageSize } = useTransactions(id)
   
   const [searchTerm, setSearchTerm] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
 
-  useEffect(() => {
-    if (!id) return
-    const fetchVenture = async () => {
-      setLoading(true)
-      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
-      const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
-        method: 'GET',
-        headers,
-      })
-      if (error || !data) { navigate('/ventures'); return }
-      setVenture(data.data)
-      setLoading(false)
-    }
-    if (session?.access_token) {
-      fetchVenture()
-    }
-  }, [id, navigate, session?.access_token])
+  const session = useAuthStore((s) => s.session)
 
   useEffect(() => {
     if (id && session?.access_token) {
@@ -52,28 +35,6 @@ export function VentureDetail() {
       return () => clearTimeout(delay)
     }
   }, [id, currentPage, searchTerm, fetchTransactions, session?.access_token])
-
-  const handleEditVenture = async (input: CreateVentureInput) => {
-    if (!id) return
-    const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
-    const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
-      method: 'PUT',
-      body: input,
-      headers,
-    })
-    if (error) throw new Error(error.message || 'Error updating venture')
-    setVenture(data.data)
-  }
-
-  const handleDeleteVenture = async () => {
-    if (!id || !confirm('¿Eliminar este venture y todas sus transacciones?')) return
-    const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
-    await supabase.functions.invoke(`ventures/${id}`, {
-      method: 'DELETE',
-      headers,
-    })
-    navigate('/ventures')
-  }
 
   if (loading || !venture) {
     return (
@@ -87,24 +48,8 @@ export function VentureDetail() {
     )
   }
 
-  const isPersonal = venture.mode === 'personal'
-  const metricValue = isPersonal 
-    ? calculateHealth(venture.invested, venture.returned)
-    : calculateROI(venture.invested, venture.returned)
-    
-  const health = isPersonal
-    ? (metricValue > 20 ? 'positive' : (metricValue > 0 ? 'neutral' : 'negative'))
-    : ventureHealth(metricValue)
-    
-  const net = netProfit(venture.invested, venture.returned)
-  const remaining = breakEven(venture.invested, venture.returned)
-
-  const healthColor = health === 'positive' ? '#16a34a' : health === 'negative' ? '#dc2626' : '#525252'
-  const netColor = isPersonal 
-    ? (venture.returned > venture.invested ? '#dc2626' : '#16a34a')
-    : (net >= 0 ? '#16a34a' : '#dc2626')
-
-  const labels = VENTURE_MODE_METRICS[venture.mode || 'business']
+  if (!metrics) return null
+  const { isPersonal, metricValue, net, remaining, healthColor, netColor, labels } = metrics
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

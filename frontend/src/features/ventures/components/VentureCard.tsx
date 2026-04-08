@@ -2,7 +2,7 @@
 import { useNavigate } from 'react-router-dom'
 import { formatCurrency, formatROI } from '@/shared/lib/formatters'
 import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS, VENTURE_MODE_METRICS } from '@/shared/lib/constants'
-import { calculateROI, ventureHealth, calculateHealth } from '../utils'
+import { calculateROI, ventureHealth, calculateHealth } from '@/shared/lib/metrics'
 import type { Venture } from '../types'
 
 interface VentureCardProps {

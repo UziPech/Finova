@@ -34,7 +34,7 @@ Cada proyecto, negocio o cliente es una unidad con su propio ciclo de inversión
 | **Auth & Function Sync** | ✅ Listo | Inyección manual de `Authorization` header en hooks (resolve 401s) |
 | **Seguridad Webhook** | ✅ Listo | Verificación HMAC SHA-256 para mensajes de WhatsApp |
 | **Limpieza de código** | ✅ Listo | Archivos huérfanos eliminados y corrección de sintaxis en catches |
-| **Sistema de Préstamos** | ⚠️ Estabilizando | Edge Function `loans`, componente `DashboardLoans` y soporte para pagos semanales (vIn progress) |
+| **Sistema de Préstamos** | ✅ Listo | Edge Function `loans`, componente `DashboardLoans` y soporte para pagos semanales. |
 
 ### 🔲 Pendiente
 
@@ -369,15 +369,33 @@ Métrica: **Salud de Presupuesto** ($1 - \text{Gasto}/\text{Presupuesto}$).
 Regla: Evitar el término ROI en modo personal para evitar confusiones (ej. -100% al gastar).
 
 ```typescript
-// features/ventures/utils.ts
+// features/ventures/utils.ts -> Migrado a shared/lib/metrics.ts
 export const calculateROI = (invested: number, returned: number): number => {
   if (invested === 0) return 0
+  if (returned === 0 && invested > 0) return -100 // Refleja pérdida total inicial
   return Number(((returned - invested) / invested * 100).toFixed(2))
 }
 
+/** 
+ * Salud del presupuesto (Modo Personal/Hogar)
+ * @returns 0-100 (Porcentaje de presupuesto disponible)
+ */
 export const calculateHealth = (budget: number, spent: number): number => {
-  if (budget === 0) return 0
-  return Math.max(0, ((budget - spent) / budget) * 100)
+  if (budget <= 0) return 0
+  const remaining = budget - spent
+  return Math.max(0, Number(((remaining / budget) * 100).toFixed(2)))
+}
+
+/** 
+ * Estado Semántico de Salud (Basado en ROI) 
+ * - Positive: ROI > 10% (Crecimiento real)
+ * - Neutral: 0% <= ROI <= 10% (Punto de equilibrio o marginal)
+ * - Negative: ROI < 0% (Pérdida)
+ */
+export const ventureHealth = (roi: number): VentureHealth => {
+  if (roi > 10) return 'positive'
+  if (roi >= 0) return 'neutral'
+  return 'negative'
 }
 ```
 
@@ -416,16 +434,25 @@ export const calculateHealth = (budget: number, spent: number): number => {
     
     El componente solo recibe datos ya procesados y los renderiza.
     
-    **Convención de Nombres (NUEVO):**
-    Para forzar esta separación visualmente en la base de código, los componentes puramente presentacionales (dumb components) que sean el "cascarón" de una vista compleja DEBEN usar el sufijo `.view.tsx` (ej. `Dashboard.view.tsx`, `VentureDetail.view.tsx`). Los archivos `.tsx` estándar se reservan para componentes de UI menores o contenedores ligeros.
+    **Convención de Nombres ESTRICTA:**
+    - Componentes de vista (cascarón de página o sección): `.view.tsx`.
+    - Componentes de UI unitarios (Botones, Inputs): `.tsx`.
+    - Hooks de lógica: `use*.ts`.
+    - Utilidades puras: `*.ts`.
 
-    VIOLACIÓN DETECTABLE: Si un componente contiene `.filter()`, `.reduce()`,
-    `.map()` con lógica de dominio, operaciones aritméticas de negocio, o construcción
-    de `Record<>` por agrupación, ese código debe extraerse antes de hacer commit.
+    **Prohibiciones en Vistas (.view.tsx):**
+    - Prohibido el uso de lógica de negocio (agregaciones, reducciones, filtros complejos).
+    - Prohibido el uso de `useEffect` para cálculos de dominio (debe ir en un hook).
+    - Prohibida la declaración de tipos de dominio locales (usar `@backend/_shared/types.ts`).
     
-    Los únicos `.map()` permitidos en JSX son para renderizar arrays ya procesados.
-    Ejemplo de lo que NO debe estar en un componente:
-    `transactions.filter(t => t.date.startsWith(key)).reduce(...)` → va a utils o hook.
+    VIOLACIÓN DETECTABLE: Si un componente contiene `.filter()`, `.reduce()`,
+    `.map()` con lógica de dominio (que no sea simple renderizado de lista), o 
+    construcción de `Record<>` para agrupamiento, ese código debe extraerse a un Hook o Util.
+
+    **Regla de Oro del Vertical Slice:**
+    Un cambio en un Feature (ej. `ventures`) NUNCA debe requerir cambios en otro Feature 
+    (ej. `dashboard`) más allá de la actualización de una interfaz en `shared`. Si esto sucede,
+    la arquitectura está mal acoplada.
 ---
 
 ## Comandos

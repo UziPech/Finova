@@ -27,5 +27,21 @@ Este documento contiene el plan detallado para la estabilización y expansión d
     3.  Ajustes o intereses acumulados.
     4.  Saldo insoluto proyectado.
 
+## 5. Refactorización Proactiva (Cumplimiento Regla 21) ✅
+*   **Estado**: COMPLETADO (08/04/2026).
+*   **Acción**: Se crearon hooks especializados (`useDashboardMetrics`, `useVentureStatus`, `useSmartAlerts`, `useVentureDetail`, `useKeywords`, `useWhatsAppSettings`) y se renombraron las vistas a `.view.tsx`.
+
+## 6. Consolidación de Arquitectura Modular (Vertical Slicing) ✅
+*   **Estado**: COMPLETADO (08/04/2026).
+*   **Acción**: Centralización de métricas en `shared/lib/metrics.ts` y estandarización de la estructura de carpetas por features. Eliminado el archivo ambigüo `utils.ts`.
+
+## 7. Desacoplamiento de Préstamos y Ventures (Independencia de Slices) ✅
+*   **Estado**: COMPLETADO (08/04/2026).
+*   **Acción**: `VentureDetail.view.tsx` ahora es un contenedor puramente pasivo de `LoansSection.view.tsx`. Toda la lógica reside en sus respectivos hooks.
+
+## 8. Saneamiento de VentureDetail (Deuda Técnica de Rule 21) ✅
+*   **Estado**: COMPLETADO (08/04/2026).
+*   **Acción**: Migración de llamadas de API y lógica de métricas al hook `useVentureDetail.ts`.
+
 ---
-*Nota: Este plan fue extraído del Implementation Plan del 07/04/2026 para continuidad del siguiente agente.*
+*Nota: Este plan fue extraído del Implementation Plan del 07/04/2026 para continuidad del siguiente agente, incorporando las nuevas directrices de arquitectura del 08/04/2026.*

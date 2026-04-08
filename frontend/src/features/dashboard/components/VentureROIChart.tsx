@@ -1,7 +1,7 @@
 // features/dashboard/components/VentureROIChart.tsx
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import type { Venture } from '@backend/_shared/types'
-import { calculateROI, ventureHealth } from '@/features/ventures/utils'
+import { calculateROI, ventureHealth } from '@/shared/lib/metrics'
 import { formatROI } from '@/shared/lib/formatters'
 
 interface VentureROIChartProps {

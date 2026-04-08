@@ -1,6 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react'
-import { supabase } from '@/shared/lib/supabase'
-import { useAuthStore } from '@/features/auth/store'
+import { useWhatsAppSettings } from '../hooks/useWhatsAppSettings'
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
@@ -16,70 +14,16 @@ const inputStyle: React.CSSProperties = {
 }
 
 export function WhatsAppSettings() {
-  const [phoneNumberId, setPhoneNumberId] = useState('')
-  const [accessToken, setAccessToken] = useState('')
-  const [verifyToken, setVerifyToken] = useState('')
-  const [saving, setSaving] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [success, setSuccess] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const session = useAuthStore((s) => s.session)
-
-  useEffect(() => {
-    const fetchSettings = async () => {
-      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
-      const { data, error } = await supabase.functions.invoke('user-settings/integrations', {
-        method: 'GET',
-        headers,
-      })
-      if (!error && data) {
-        const d = data.data
-        if (d) {
-          setPhoneNumberId(d.whatsapp_phone_number_id || '')
-          setVerifyToken(d.whatsapp_verify_token || '')
-          setAccessToken(d.has_access_token ? '••••••••' : '')
-        }
-      }
-      setLoading(false)
-    }
-    if (session?.access_token) {
-      fetchSettings()
-    } else {
-      setLoading(false)
-    }
-  }, [session?.access_token])
-
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault()
-    setError(null)
-    setSuccess(null)
-    setSaving(true)
-    try {
-      const body: Record<string, string> = {
-        whatsapp_phone_number_id: phoneNumberId,
-        whatsapp_verify_token: verifyToken,
-      }
-      if (accessToken && !accessToken.startsWith('•')) {
-        body.whatsapp_access_token = accessToken
-      }
-
-      const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
-      const { error } = await supabase.functions.invoke('user-settings/integrations', {
-        method: 'PUT',
-        body,
-        headers,
-      })
-      
-      if (error) {
-        throw new Error(error.message || 'Error saving settings')
-      }
-      setSuccess('Configuración guardada')
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error al guardar')
-    } finally {
-      setSaving(false)
-    }
-  }
+  const {
+    phoneNumberId, setPhoneNumberId,
+    accessToken, setAccessToken,
+    verifyToken, setVerifyToken,
+    saving,
+    loading,
+    success,
+    error,
+    saveSettings
+  } = useWhatsAppSettings()
 
   if (loading) {
     return (
@@ -119,7 +63,7 @@ export function WhatsAppSettings() {
       <div style={{
         backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5', padding: '24px',
       }}>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <form onSubmit={saveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div>
             <label htmlFor="wa-phone-id" style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#525252', marginBottom: '6px' }}>Phone Number ID</label>
             <input

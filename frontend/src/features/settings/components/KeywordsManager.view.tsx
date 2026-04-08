@@ -1,12 +1,6 @@
 // features/settings/components/KeywordsManager.tsx — Gestión monocromática
 import { useState, useEffect } from 'react'
-import { supabase } from '@/shared/lib/supabase'
-
-interface Keyword {
-  id: string
-  keyword: string
-  type: 'income' | 'expense'
-}
+import { useKeywords } from '../hooks/useKeywords'
 
 const inputStyle: React.CSSProperties = {
   padding: '10px 14px',
@@ -21,48 +15,16 @@ const inputStyle: React.CSSProperties = {
 }
 
 export function KeywordsManager() {
-  const [keywords, setKeywords] = useState<Keyword[]>([])
-  const [loading, setLoading] = useState(true)
+  const { incomeKeywords, expenseKeywords, loading, saving, addKeyword, removeKeyword } = useKeywords()
   const [newKeyword, setNewKeyword] = useState('')
   const [newType, setNewType] = useState<'income' | 'expense'>('expense')
-  const [saving, setSaving] = useState(false)
 
-  useEffect(() => {
-    const fetchKeywords = async () => {
-      const { data, error } = await supabase.functions.invoke('user-settings/keywords', {
-        method: 'GET',
-      })
-      if (!error && data) {
-        setKeywords(data.data || [])
-      }
-      setLoading(false)
-    }
-    fetchKeywords()
-  }, [])
-
-  const addKeyword = async () => {
-    if (!newKeyword.trim()) return
-    setSaving(true)
-    const { data, error } = await supabase.functions.invoke('user-settings/keywords', {
-      method: 'POST',
-      body: { keyword: newKeyword.trim().toLowerCase(), type: newType },
-    })
-    if (!error && data) {
-      setKeywords((prev) => [...prev, data.data])
+  const handleAdd = async () => {
+    const success = await addKeyword(newKeyword, newType)
+    if (success) {
       setNewKeyword('')
     }
-    setSaving(false)
   }
-
-  const removeKeyword = async (id: string) => {
-    await supabase.functions.invoke(`user-settings/keywords/${id}`, {
-      method: 'DELETE',
-    })
-    setKeywords((prev) => prev.filter((k) => k.id !== id))
-  }
-
-  const incomeKeywords = keywords.filter((k) => k.type === 'income')
-  const expenseKeywords = keywords.filter((k) => k.type === 'expense')
 
   if (loading) {
     return (
@@ -111,7 +73,7 @@ export function KeywordsManager() {
             style={{ ...inputStyle, flex: 1 }}
             onFocus={(e) => { e.currentTarget.style.borderColor = '#a3a3a3' }}
             onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e5e5' }}
-            onKeyDown={(e) => { if (e.key === 'Enter') addKeyword() }}
+            onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
           />
           <select
             value={newType}
@@ -122,7 +84,7 @@ export function KeywordsManager() {
             <option value="income">Ingreso</option>
           </select>
           <button
-            onClick={addKeyword}
+            onClick={handleAdd}
             disabled={saving || !newKeyword.trim()}
             style={{
               padding: '10px 16px', borderRadius: '8px', border: 'none',

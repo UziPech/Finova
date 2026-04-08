@@ -1,10 +1,11 @@
-// apps/web/src/features/ventures/utils.ts
-// Cálculos de negocio de ventures — NUNCA persistir ROI en DB
-import type { VentureHealth } from './types'
+// frontend/src/shared/lib/metrics.ts
+// Cálculos de negocio centralizados — NUNCA persistir ROI en DB
+import type { VentureHealth } from '@backend/_shared/types'
 
 /** ROI en porcentaje. Nunca persistir en DB. */
 export const calculateROI = (invested: number, returned: number): number => {
-  if (invested === 0 || returned === 0) return 0
+  if (invested === 0) return 0
+  if (returned === 0 && invested > 0) return -100
   return Number(((returned - invested) / invested * 100).toFixed(2))
 }
 
@@ -15,8 +16,8 @@ export const breakEven = (invested: number, returned: number): number => {
 
 /** Estado de salud del venture basado en ROI. */
 export const ventureHealth = (roi: number): VentureHealth => {
-  if (roi > 0) return 'positive'
-  if (roi === 0) return 'neutral'
+  if (roi > 10) return 'positive'
+  if (roi >= 0) return 'neutral'
   return 'negative'
 }
 

@@ -2,14 +2,14 @@
 import { useEffect } from 'react'
 import { useVentures } from '@/features/ventures/hooks/useVentures'
 import { useTransactions } from '@/features/transactions/hooks/useTransactions'
-import { calculateHealth, calculateROI } from '@/features/ventures/utils'
+import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
 import { formatCurrency, formatROI } from '@/shared/lib/formatters'
 import { MetricCard } from './MetricCard'
 import { MonthlyChart } from './MonthlyChart'
 import { VentureROIChart } from './VentureROIChart'
 import { TypeDistributionChart } from './TypeDistributionChart'
-import { VentureStatusList } from './VentureStatusList'
-import { SmartAlerts } from './SmartAlerts'
+import { VentureStatusList } from './VentureStatusList.view'
+import { SmartAlerts } from './SmartAlerts.view'
 import { DashboardLoans } from './DashboardLoans'
 
 export function DashboardView() {
@@ -19,6 +19,21 @@ export function DashboardView() {
   useEffect(() => {
     fetchTransactions()
   }, [fetchTransactions])
+
+  // — Cálculos de métricas delegados al hook —
+  const {
+    totalInvested,
+    totalReturned,
+    activeVenturesCount,
+    isPersonalMajority,
+    avgMetric,
+    metricTitle,
+    trendText,
+    monthTxCount,
+    flujoLibre,
+    flujoTrendText,
+    capitalActivo
+  } = useDashboardMetrics(ventures, transactions)
 
   const loading = venturesLoading || txLoading
 
@@ -98,59 +113,6 @@ export function DashboardView() {
     )
   }
 
-  // — Cálculos de métricas —
-  const totalInvested = ventures.reduce((sum, v) => sum + v.invested, 0)
-  const totalReturned = ventures.reduce((sum, v) => sum + v.returned, 0)
-  const activeVentures = ventures.filter((v) => v.status === 'active')
-  const businessVentures = activeVentures.filter(v => v.mode === 'business')
-  const personalVentures = activeVentures.filter(v => v.mode === 'personal')
-
-  const isPersonalMajority = personalVentures.length > businessVentures.length
-
-  let avgMetric = 0
-  let positiveCount = 0
-  let metricTitle = 'ROI promedio'
-  let trendText = ''
-
-  if (isPersonalMajority) {
-    const healths = personalVentures.map(v => calculateHealth(v.invested, v.returned))
-    avgMetric = healths.length > 0 ? healths.reduce((a, b) => a + b, 0) / healths.length : 0
-    positiveCount = healths.filter(h => h > 20).length // >20% budget remaining is healthy
-    metricTitle = 'Salud Promedio'
-    trendText = `${positiveCount} proyecto${positiveCount !== 1 ? 's' : ''} saludable${positiveCount !== 1 ? 's' : ''}`
-  } else {
-    const rois = businessVentures.map(v => calculateROI(v.invested, v.returned))
-    avgMetric = rois.length > 0 ? rois.reduce((a, b) => a + b, 0) / rois.length : 0
-    positiveCount = rois.filter((r) => r > 0).length
-    metricTitle = 'ROI Promedio'
-    trendText = `${positiveCount} venture${positiveCount !== 1 ? 's' : ''} positivo${positiveCount !== 1 ? 's' : ''}`
-  }
-
-  // Flujo libre del mes actual
-  const today = new Date()
-  const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
-  const monthTx = transactions.filter((t) => t.date.startsWith(currentMonthKey))
-  const flujoLibre = monthTx.reduce(
-    (sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount),
-    0
-  )
-
-  // Tendencia vs mes anterior
-  const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-  const prevMonthKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`
-  const prevFlujo = transactions
-    .filter((t) => t.date.startsWith(prevMonthKey))
-    .reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0)
-
-  const flujoTrendText =
-    prevFlujo !== 0
-      ? `${flujoLibre >= prevFlujo ? '+' : ''}${(((flujoLibre - prevFlujo) / Math.abs(prevFlujo)) * 100).toFixed(0)}% vs mes anterior`
-      : flujoLibre >= 0
-        ? 'Positivo'
-        : 'Negativo'
-
-  // Capital total activo
-  const capitalActivo = activeVentures.reduce((sum, v) => sum + v.invested, 0)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -160,7 +122,7 @@ export function DashboardView() {
           Centro de mando
         </h1>
         <p style={{ fontSize: '14px', color: '#737373', margin: '2px 0 0' }}>
-          {ventures.length} venture{ventures.length !== 1 ? 's' : ''} · {monthTx.length} transacciones este mes
+          {ventures.length} venture{ventures.length !== 1 ? 's' : ''} · {monthTxCount} transacciones este mes
         </p>
       </div>
 
@@ -176,7 +138,7 @@ export function DashboardView() {
         <MetricCard
           title="Capital total activo"
           value={formatCurrency(capitalActivo)}
-          subtitle={`en ${activeVentures.length} venture${activeVentures.length !== 1 ? 's' : ''} activo${activeVentures.length !== 1 ? 's' : ''}`}
+          subtitle={`en ${activeVenturesCount} venture${activeVenturesCount !== 1 ? 's' : ''} activo${activeVenturesCount !== 1 ? 's' : ''}`}
           delay={50}
         />
         <MetricCard
