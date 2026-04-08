@@ -84,28 +84,34 @@ frontend/
         types.ts
       dashboard/
         components/
+          Dashboard.view.tsx
           DashboardLoans.tsx
-          DashboardView.tsx
           MetricCard.tsx
           MonthlyChart.tsx
-          RedVentures.tsx
-          SmartAlerts.tsx
+          SmartAlerts.view.tsx
           TypeDistributionChart.tsx
           VentureROIChart.tsx
-          VentureStatusList.tsx
+          VentureStatusList.view.tsx
+        hooks/
+          useDashboardMetrics.ts
+          useSmartAlerts.ts
+          useVentureStatus.ts
         pages/
           DashboardPage.tsx
       loans/
         components/
           LoanForm.tsx
-          LoansSection.tsx
+          LoansSection.view.tsx
         hooks/
           useLoans.ts
         types.ts
       settings/
         components/
-          KeywordsManager.tsx
-          WhatsAppSettings.tsx
+          KeywordsManager.view.tsx
+          WhatsAppSettings.view.tsx
+        hooks/
+          useKeywords.ts
+          useWhatsAppSettings.ts
         pages/
           SettingsKeywordsPage.tsx
           SettingsWhatsAppPage.tsx
@@ -119,28 +125,30 @@ frontend/
       ventures/
         components/
           VentureCard.tsx
-          VentureDetail.tsx
+          VentureDetail.view.tsx
           VentureForm.tsx
-          VenturesList.tsx
+          VenturesList.view.tsx
         hooks/
+          useVentureDetail.ts
           useVentures.ts
         pages/
           VentureDetailPage.tsx
           VenturesPage.tsx
         store.ts
         types.ts
-        utils.ts
     shared/
       components/
         SlidePanel.tsx
       lib/
         constants.ts
         formatters.ts
+        metrics.ts
         supabase.ts
       types/
         index.ts
     App.tsx
     main.tsx
+    vite-env.d.ts
   package.json
 CLAUDE.md
 package.json
@@ -1430,6 +1438,373 @@ package.json
 4: export type { AuthUser } from '@backend/_shared/types'
 ````
 
+## File: frontend/src/features/dashboard/components/Dashboard.view.tsx
+````typescript
+  1: // features/dashboard/components/DashboardView.tsx — Centro de mando financiero
+  2: import { useEffect } from 'react'
+  3: import { useVentures } from '@/features/ventures/hooks/useVentures'
+  4: import { useTransactions } from '@/features/transactions/hooks/useTransactions'
+  5: import { useDashboardMetrics } from '../hooks/useDashboardMetrics'
+  6: import { formatCurrency, formatROI } from '@/shared/lib/formatters'
+  7: import { MetricCard } from './MetricCard'
+  8: import { MonthlyChart } from './MonthlyChart'
+  9: import { VentureROIChart } from './VentureROIChart'
+ 10: import { TypeDistributionChart } from './TypeDistributionChart'
+ 11: import { VentureStatusList } from './VentureStatusList.view'
+ 12: import { SmartAlerts } from './SmartAlerts.view'
+ 13: import { DashboardLoans } from './DashboardLoans'
+ 14: 
+ 15: export function DashboardView() {
+ 16:   const { ventures, loading: venturesLoading } = useVentures()
+ 17:   const { transactions, loading: txLoading, fetchTransactions } = useTransactions()
+ 18: 
+ 19:   useEffect(() => {
+ 20:     fetchTransactions()
+ 21:   }, [fetchTransactions])
+ 22: 
+ 23:   // — Cálculos de métricas delegados al hook —
+ 24:   const {
+ 25:     totalInvested,
+ 26:     totalReturned,
+ 27:     activeVenturesCount,
+ 28:     isPersonalMajority,
+ 29:     avgMetric,
+ 30:     metricTitle,
+ 31:     trendText,
+ 32:     monthTxCount,
+ 33:     flujoLibre,
+ 34:     flujoTrendText,
+ 35:     capitalActivo
+ 36:   } = useDashboardMetrics(ventures, transactions)
+ 37: 
+ 38:   const loading = venturesLoading || txLoading
+ 39: 
+ 40:   if (loading) {
+ 41:     return (
+ 42:       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+ 43:         <div>
+ 44:           <div className="skeleton" style={{ height: '28px', width: '160px', marginBottom: '4px' }} />
+ 45:           <div className="skeleton" style={{ height: '16px', width: '260px' }} />
+ 46:         </div>
+ 47:         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+ 48:           {[...Array(4)].map((_, i) => (
+ 49:             <div key={i} className="skeleton" style={{ height: '128px', borderRadius: '14px' }} />
+ 50:           ))}
+ 51:         </div>
+ 52:         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+ 53:           <div className="skeleton" style={{ height: '320px', borderRadius: '14px' }} />
+ 54:           <div className="skeleton" style={{ height: '320px', borderRadius: '14px' }} />
+ 55:         </div>
+ 56:       </div>
+ 57:     )
+ 58:   }
+ 59: 
+ 60:   if (ventures.length === 0) {
+ 61:     return (
+ 62:       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px', minHeight: '80vh', alignItems: 'center', justifyContent: 'center' }}>
+ 63:         <div style={{
+ 64:           width: '80px',
+ 65:           height: '80px',
+ 66:           borderRadius: '20px',
+ 67:           backgroundColor: '#171717',
+ 68:           border: '1px solid #2a2a2a',
+ 69:           display: 'flex',
+ 70:           alignItems: 'center',
+ 71:           justifyContent: 'center',
+ 72:           marginBottom: '24px',
+ 73:           boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
+ 74:         }}>
+ 75:           <svg style={{ width: '32px', height: '32px', color: '#a3a3a3' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+ 76:             <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+ 77:           </svg>
+ 78:         </div>
+ 79:         <h1 style={{ fontSize: 'clamp(24px, 3vw, 28px)', fontWeight: 600, color: '#0a0a0a', letterSpacing: '-0.02em', margin: '0 0 12px 0', textAlign: 'center' }}>
+ 80:           Resumen Ejecutivo
+ 81:         </h1>
+ 82:         <p style={{ fontSize: '15px', color: '#737373', maxWidth: '400px', textAlign: 'center', margin: '0 0 32px 0', lineHeight: 1.6 }}>
+ 83:           No existen proyectos registrados en el portafolio. Para habilitar las métricas de análisis, registre un nuevo venture.
+ 84:         </p>
+ 85:         <button
+ 86:           onClick={() => window.location.href = '/ventures'}
+ 87:           style={{
+ 88:             display: 'inline-flex',
+ 89:             alignItems: 'center',
+ 90:             gap: '8px',
+ 91:             padding: '12px 24px',
+ 92:             borderRadius: '12px',
+ 93:             backgroundColor: '#0a0a0a',
+ 94:             color: '#fafafa',
+ 95:             fontSize: '15px',
+ 96:             fontWeight: 500,
+ 97:             border: 'none',
+ 98:             cursor: 'pointer',
+ 99:             transition: 'all 0.15s',
+100:             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+101:           }}
+102:           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#262626' }}
+103:           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0a0a0a' }}
+104:           onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.98)' }}
+105:           onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+106:         >
+107:           <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+108:             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+109:           </svg>
+110:           Crear tu primer venture
+111:         </button>
+112:       </div>
+113:     )
+114:   }
+115: 
+116: 
+117:   return (
+118:     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+119:       {/* Header */}
+120:       <div className="animate-fade-in">
+121:         <h1 style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>
+122:           Centro de mando
+123:         </h1>
+124:         <p style={{ fontSize: '14px', color: '#737373', margin: '2px 0 0' }}>
+125:           {ventures.length} venture{ventures.length !== 1 ? 's' : ''} · {monthTxCount} transacciones este mes
+126:         </p>
+127:       </div>
+128: 
+129:       {/* Metric Cards */}
+130:       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+131:         <MetricCard
+132:           title="Flujo libre este mes"
+133:           value={`${flujoLibre >= 0 ? '+' : ''}${formatCurrency(flujoLibre)}`}
+134:           valueColor={flujoLibre >= 0 ? '#16a34a' : '#dc2626'}
+135:           trend={{ value: flujoTrendText, positive: flujoLibre >= 0 }}
+136:           delay={0}
+137:         />
+138:         <MetricCard
+139:           title="Capital total activo"
+140:           value={formatCurrency(capitalActivo)}
+141:           subtitle={`en ${activeVenturesCount} venture${activeVenturesCount !== 1 ? 's' : ''} activo${activeVenturesCount !== 1 ? 's' : ''}`}
+142:           delay={50}
+143:         />
+144:         <MetricCard
+145:           title={metricTitle}
+146:           value={isPersonalMajority ? `${avgMetric.toFixed(0)}%` : formatROI(avgMetric)}
+147:           valueColor={isPersonalMajority ? (avgMetric > 20 ? '#16a34a' : '#dc2626') : (avgMetric > 0 ? '#16a34a' : avgMetric < 0 ? '#dc2626' : undefined)}
+148:           trend={{ value: trendText, positive: isPersonalMajority ? avgMetric > 20 : avgMetric >= 0 }}
+149:           delay={100}
+150:         />
+151:         <MetricCard
+152:           title="Total invertido"
+153:           value={formatCurrency(totalInvested)}
+154:           subtitle={`${formatCurrency(totalReturned)} retornado`}
+155:           delay={150}
+156:         />
+157:       </div>
+158: 
+159:       {/* Fila A: Charts principales */}
+160:       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+161:         <div className="lg:col-span-2">
+162:           <MonthlyChart transactions={transactions} />
+163:         </div>
+164:         <TypeDistributionChart ventures={ventures} />
+165:       </div>
+166: 
+167:       {/* Fila B: ROI Comparativo + Estado de Ventures */}
+168:       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+169:         <VentureROIChart ventures={ventures} />
+170:         <VentureStatusList ventures={ventures} />
+171:       </div>
+172: 
+173:       {/* Fila C: Préstamos Globales */}
+174:       <DashboardLoans />
+175: 
+176:       {/* Fila D: Alertas inteligentes */}
+177:       <SmartAlerts ventures={ventures} transactions={transactions} />
+178: 
+179:       {/* Guía de colores — UX info */}
+180:       <div
+181:         className="animate-fade-in"
+182:         style={{
+183:           backgroundColor: '#fafafa',
+184:           borderRadius: '14px',
+185:           padding: '16px 20px',
+186:           border: '1px solid #f0f0f0',
+187:           animationDelay: '500ms',
+188:         }}
+189:       >
+190:         <p style={{ fontSize: '12px', fontWeight: 600, color: '#a3a3a3', margin: '0 0 10px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+191:           Guía de indicadores
+192:         </p>
+193:         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 28px', fontSize: '12px', color: '#525252' }}>
+194:           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+195:             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+196:             Verde = {isPersonalMajority ? 'Presupuesto saludable' : 'ROI positivo o rentable'}
+197:           </span>
+198:           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+199:             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#eab308' }} />
+200:             Amarillo = {isPersonalMajority ? 'Presupuesto ajustado' : 'Neutral, vigilar'}
+201:           </span>
+202:           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+203:             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
+204:             Rojo = {isPersonalMajority ? 'Presupuesto agotado' : 'En pérdida, revisar'}
+205:           </span>
+206:           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+207:             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3b82f6' }} />
+208:             Azul = Informativo
+209:           </span>
+210:           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+211:             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#a3a3a3' }} />
+212:             Gris = Pausado o sin datos
+213:           </span>
+214:         </div>
+215:       </div>
+216:     </div>
+217:   )
+218: }
+````
+
+## File: frontend/src/features/dashboard/components/SmartAlerts.view.tsx
+````typescript
+  1: // features/dashboard/components/SmartAlerts.tsx — Tarjetas horizontales de alerta
+  2: import { useEffect } from 'react'
+  3: import type { Venture, Transaction } from '@backend/_shared/types'
+  4: import { useSmartAlerts } from '../hooks/useSmartAlerts'
+  5: import { useLoans } from '@/features/loans/hooks/useLoans'
+  6: 
+  7: interface SmartAlertsProps {
+  8:   ventures: Venture[]
+  9:   transactions: Transaction[]
+ 10: }
+ 11: 
+ 12: 
+ 13: 
+ 14: export function SmartAlerts({ ventures, transactions }: SmartAlertsProps) {
+ 15:   const { loans, fetchLoans } = useLoans()
+ 16: 
+ 17:   useEffect(() => {
+ 18:     fetchLoans()
+ 19:   }, [fetchLoans])
+ 20: 
+ 21:   const { displayAlerts } = useSmartAlerts(ventures, transactions, loans)
+ 22: 
+ 23:   if (displayAlerts.length === 0) {
+ 24:     return (
+ 25:       <div
+ 26:         className="animate-fade-in"
+ 27:         style={{
+ 28:           backgroundColor: '#fff',
+ 29:           borderRadius: '14px',
+ 30:           padding: '20px',
+ 31:           border: '1px solid #e5e5e5',
+ 32:           animationDelay: '400ms',
+ 33:         }}
+ 34:       >
+ 35:         <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: '0 0 12px' }}>
+ 36:           Alertas inteligentes
+ 37:         </h3>
+ 38:         <div
+ 39:           style={{
+ 40:             display: 'flex',
+ 41:             alignItems: 'center',
+ 42:             gap: '8px',
+ 43:             padding: '12px',
+ 44:             backgroundColor: '#f0fdf4',
+ 45:             borderRadius: '10px',
+ 46:           }}
+ 47:         >
+ 48:           <svg
+ 49:             style={{ width: '18px', height: '18px', color: '#16a34a', flexShrink: 0 }}
+ 50:             fill="none"
+ 51:             viewBox="0 0 24 24"
+ 52:             stroke="currentColor"
+ 53:             strokeWidth={2}
+ 54:           >
+ 55:             <path
+ 56:               strokeLinecap="round"
+ 57:               strokeLinejoin="round"
+ 58:               d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+ 59:             />
+ 60:           </svg>
+ 61:           <span style={{ fontSize: '14px', color: '#166534', fontWeight: 500 }}>
+ 62:             Todo en orden. No hay alertas críticas.
+ 63:           </span>
+ 64:         </div>
+ 65:       </div>
+ 66:     )
+ 67:   }
+ 68: 
+ 69:   return (
+ 70:     <div
+ 71:       className="animate-fade-in"
+ 72:       style={{
+ 73:         backgroundColor: '#fff',
+ 74:         borderRadius: '14px',
+ 75:         padding: '20px',
+ 76:         border: '1px solid #e5e5e5',
+ 77:         animationDelay: '400ms',
+ 78:       }}
+ 79:     >
+ 80:       <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: '0 0 12px' }}>
+ 81:         Alertas inteligentes
+ 82:       </h3>
+ 83: 
+ 84:       <div
+ 85:         style={{
+ 86:           display: 'grid',
+ 87:           gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+ 88:           gap: '12px',
+ 89:         }}
+ 90:       >
+ 91:         {displayAlerts.map((alert) => (
+ 92:           <div
+ 93:             key={alert.id}
+ 94:             style={{
+ 95:               borderLeft: `3px solid ${alert.borderColor}`,
+ 96:               backgroundColor: alert.bgColor,
+ 97:               borderRadius: '0 10px 10px 0',
+ 98:               padding: '14px 16px',
+ 99:               display: 'flex',
+100:               flexDirection: 'column',
+101:               gap: '6px',
+102:             }}
+103:           >
+104:             <p
+105:               style={{
+106:                 fontSize: '13px',
+107:                 fontWeight: 600,
+108:                 color: alert.titleColor,
+109:                 margin: 0,
+110:                 lineHeight: 1.3,
+111:               }}
+112:             >
+113:               {alert.title}
+114:             </p>
+115:             <p
+116:               style={{
+117:                 fontSize: '12px',
+118:                 color: '#525252',
+119:                 margin: 0,
+120:                 lineHeight: 1.4,
+121:               }}
+122:             >
+123:               {alert.description}
+124:             </p>
+125:             <span
+126:               style={{
+127:                 fontSize: '12px',
+128:                 fontWeight: 600,
+129:                 color: alert.actionColor,
+130:                 marginTop: '4px',
+131:                 cursor: 'pointer',
+132:               }}
+133:             >
+134:               {alert.actionLabel}
+135:             </span>
+136:           </div>
+137:         ))}
+138:       </div>
+139:     </div>
+140:   )
+141: }
+````
+
 ## File: frontend/src/features/dashboard/components/TypeDistributionChart.tsx
 ````typescript
   1: // features/dashboard/components/TypeDistributionChart.tsx
@@ -1558,14 +1933,760 @@ package.json
 124: }
 ````
 
-## File: frontend/src/features/dashboard/pages/DashboardPage.tsx
+## File: frontend/src/features/dashboard/components/VentureStatusList.view.tsx
 ````typescript
-1: // pages/DashboardPage.tsx — shell de la feature dashboard
-2: import { DashboardView } from '@/features/dashboard/components/DashboardView'
-3: 
-4: export default function DashboardPage() {
-5:   return <DashboardView />
-6: }
+  1: // features/dashboard/components/VentureStatusList.tsx
+  2: import type { Venture } from '@backend/_shared/types'
+  3: import { formatROI } from '@/shared/lib/formatters'
+  4: import { VENTURE_TYPE_LABELS } from '@/shared/lib/constants'
+  5: import { useVentureStatus, formatTimeSince, getDotColor } from '../hooks/useVentureStatus'
+  6: 
+  7: interface VentureStatusListProps {
+  8:   ventures: Venture[]
+  9: }
+ 10: 
+ 11: export function VentureStatusList({ ventures }: VentureStatusListProps) {
+ 12:   const { ventureData, redCount } = useVentureStatus(ventures)
+ 13: 
+ 14:   if (ventureData.length === 0) {
+ 15:     return (
+ 16:       <div
+ 17:         className="animate-fade-in"
+ 18:         style={{
+ 19:           backgroundColor: '#fff',
+ 20:           border: '1px solid #e5e5e5',
+ 21:           borderRadius: '14px',
+ 22:           padding: '20px',
+ 23:           display: 'flex',
+ 24:           alignItems: 'center',
+ 25:           justifyContent: 'center',
+ 26:           minHeight: '200px',
+ 27:           animationDelay: '300ms',
+ 28:         }}
+ 29:       >
+ 30:         <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>
+ 31:           Sin ventures activos
+ 32:         </p>
+ 33:       </div>
+ 34:     )
+ 35:   }
+ 36: 
+ 37:   return (
+ 38:     <div
+ 39:       className="animate-fade-in"
+ 40:       style={{
+ 41:         backgroundColor: '#fff',
+ 42:         borderRadius: '14px',
+ 43:         padding: '20px',
+ 44:         border: '1px solid #e5e5e5',
+ 45:         animationDelay: '300ms',
+ 46:         display: 'flex',
+ 47:         flexDirection: 'column',
+ 48:       }}
+ 49:     >
+ 50:       {/* Header */}
+ 51:       <div
+ 52:         style={{
+ 53:           display: 'flex',
+ 54:           alignItems: 'center',
+ 55:           justifyContent: 'space-between',
+ 56:           marginBottom: '16px',
+ 57:         }}
+ 58:       >
+ 59:         <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: 0 }}>
+ 60:           Estado de ventures
+ 61:         </h3>
+ 62:         {redCount > 0 && (
+ 63:           <span
+ 64:             style={{
+ 65:               fontSize: '11px',
+ 66:               fontWeight: 600,
+ 67:               padding: '3px 12px',
+ 68:               borderRadius: '999px',
+ 69:               backgroundColor: '#fef2f2',
+ 70:               color: '#dc2626',
+ 71:               border: '1px solid #fecaca',
+ 72:             }}
+ 73:           >
+ 74:             {redCount} en rojo
+ 75:           </span>
+ 76:         )}
+ 77:       </div>
+ 78: 
+ 79:       {/* List */}
+ 80:       <div style={{ display: 'flex', flexDirection: 'column' }}>
+ 81:         {ventureData.map(({ venture, isPersonal, metricValue, health, days, badge }, idx) => (
+ 82:           <div
+ 83:             key={venture.id}
+ 84:             style={{
+ 85:               display: 'flex',
+ 86:               alignItems: 'center',
+ 87:               gap: '12px',
+ 88:               padding: '12px 0',
+ 89:               borderBottom: idx < ventureData.length - 1 ? '1px solid #f5f5f5' : 'none',
+ 90:             }}
+ 91:           >
+ 92:             {/* Dot */}
+ 93:             <span
+ 94:               style={{
+ 95:                 width: '10px',
+ 96:                 height: '10px',
+ 97:                 borderRadius: '50%',
+ 98:                 backgroundColor: getDotColor(health),
+ 99:                 flexShrink: 0,
+100:               }}
+101:             />
+102: 
+103:             {/* Info */}
+104:             <div style={{ flex: 1, minWidth: 0 }}>
+105:               <p
+106:                 style={{
+107:                   fontSize: '15px',
+108:                   fontWeight: 700,
+109:                   color: '#171717',
+110:                   margin: 0,
+111:                   whiteSpace: 'nowrap',
+112:                   overflow: 'hidden',
+113:                   textOverflow: 'ellipsis',
+114:                 }}
+115:               >
+116:                 {venture.name}
+117:               </p>
+118:               <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '1px 0 0' }}>
+119:                 {VENTURE_TYPE_LABELS[venture.type] || venture.type} · {formatTimeSince(days)}
+120:               </p>
+121:             </div>
+122: 
+123:             {/* ROI / Health */}
+124:             <span
+125:               style={{
+126:                 fontSize: '14px',
+127:                 fontWeight: 700,
+128:                 color:
+129:                   health === 'positive'
+130:                     ? '#16a34a'
+131:                     : health === 'negative'
+132:                       ? '#dc2626'
+133:                       : '#a16207',
+134:                 whiteSpace: 'nowrap',
+135:               }}
+136:             >
+137:               {isPersonal ? `${metricValue}%` : formatROI(metricValue)}
+138:             </span>
+139: 
+140:             {/* Action Badge */}
+141:             <span
+142:               style={{
+143:                 fontSize: '11px',
+144:                 fontWeight: 600,
+145:                 padding: '3px 12px',
+146:                 borderRadius: '999px',
+147:                 backgroundColor: badge.bg,
+148:                 color: badge.color,
+149:                 border: `1px solid ${badge.border}`,
+150:                 whiteSpace: 'nowrap',
+151:                 flexShrink: 0,
+152:               }}
+153:             >
+154:               {badge.label}
+155:             </span>
+156:           </div>
+157:         ))}
+158:       </div>
+159:     </div>
+160:   )
+161: }
+````
+
+## File: frontend/src/features/dashboard/hooks/useDashboardMetrics.ts
+````typescript
+ 1: import { useMemo } from 'react'
+ 2: import type { Venture, Transaction } from '@backend/_shared/types'
+ 3: import { calculateHealth, calculateROI } from '@/shared/lib/metrics'
+ 4: 
+ 5: export function useDashboardMetrics(ventures: Venture[], transactions: Transaction[]) {
+ 6:   return useMemo(() => {
+ 7:     const totalInvested = ventures.reduce((sum, v) => sum + v.invested, 0)
+ 8:     const totalReturned = ventures.reduce((sum, v) => sum + v.returned, 0)
+ 9:     const activeVentures = ventures.filter((v) => v.status === 'active')
+10:     const businessVentures = activeVentures.filter(v => v.mode === 'business')
+11:     const personalVentures = activeVentures.filter(v => v.mode === 'personal')
+12: 
+13:     const isPersonalMajority = personalVentures.length > businessVentures.length
+14: 
+15:     let avgMetric = 0
+16:     let positiveCount = 0
+17:     let metricTitle = 'ROI promedio'
+18:     let trendText = ''
+19: 
+20:     if (isPersonalMajority) {
+21:       const healths = personalVentures.map(v => calculateHealth(v.invested, v.returned))
+22:       avgMetric = healths.length > 0 ? healths.reduce((a, b) => a + b, 0) / healths.length : 0
+23:       positiveCount = healths.filter(h => h > 20).length
+24:       metricTitle = 'Salud Promedio'
+25:       trendText = `${positiveCount} proyecto${positiveCount !== 1 ? 's' : ''} saludable${positiveCount !== 1 ? 's' : ''}`
+26:     } else {
+27:       const rois = businessVentures.map(v => calculateROI(v.invested, v.returned))
+28:       avgMetric = rois.length > 0 ? rois.reduce((a, b) => a + b, 0) / rois.length : 0
+29:       positiveCount = rois.filter((r) => r > 0).length
+30:       metricTitle = 'ROI Promedio'
+31:       trendText = `${positiveCount} venture${positiveCount !== 1 ? 's' : ''} positivo${positiveCount !== 1 ? 's' : ''}`
+32:     }
+33: 
+34:     const today = new Date()
+35:     const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
+36:     const monthTx = transactions.filter((t) => t.date.startsWith(currentMonthKey))
+37:     const flujoLibre = monthTx.reduce(
+38:       (sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount),
+39:       0
+40:     )
+41: 
+42:     const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
+43:     const prevMonthKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`
+44:     const prevFlujo = transactions
+45:       .filter((t) => t.date.startsWith(prevMonthKey))
+46:       .reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0)
+47: 
+48:     const flujoTrendText =
+49:       prevFlujo !== 0
+50:         ? `${flujoLibre >= prevFlujo ? '+' : ''}${(((flujoLibre - prevFlujo) / Math.abs(prevFlujo)) * 100).toFixed(0)}% vs mes anterior`
+51:         : flujoLibre >= 0
+52:           ? 'Positivo'
+53:           : 'Negativo'
+54: 
+55:     const capitalActivo = activeVentures.reduce((sum, v) => sum + v.invested, 0)
+56: 
+57:     return {
+58:       totalInvested,
+59:       totalReturned,
+60:       activeVenturesCount: activeVentures.length,
+61:       isPersonalMajority,
+62:       avgMetric,
+63:       metricTitle,
+64:       trendText,
+65:       monthTxCount: monthTx.length,
+66:       flujoLibre,
+67:       flujoTrendText,
+68:       capitalActivo
+69:     }
+70:   }, [ventures, transactions])
+71: }
+````
+
+## File: frontend/src/features/dashboard/hooks/useSmartAlerts.ts
+````typescript
+  1: import { useMemo } from 'react'
+  2: import type { Venture, Transaction } from '@backend/_shared/types'
+  3: import type { Loan } from '@/features/loans/types'
+  4: import { calculateROI } from '@/shared/lib/metrics'
+  5: import { formatROI, formatCurrency, formatDate } from '@/shared/lib/formatters'
+  6: 
+  7: export interface AlertData {
+  8:   id: string
+  9:   title: string
+ 10:   description: string
+ 11:   actionLabel: string
+ 12:   borderColor: string
+ 13:   bgColor: string
+ 14:   titleColor: string
+ 15:   actionColor: string
+ 16: }
+ 17: 
+ 18: export function useSmartAlerts(ventures: Venture[], transactions: Transaction[], loans: Loan[]) {
+ 19:   return useMemo(() => {
+ 20:     const alerts: AlertData[] = []
+ 21:     const activeVentures = ventures.filter((v) => v.status === 'active')
+ 22:     const now = new Date()
+ 23: 
+ 24:     // 1. Alerta Roja: Venture negativo por más de 60 días
+ 25:     activeVentures.forEach((v) => {
+ 26:       const roi = calculateROI(v.invested, v.returned)
+ 27:       const startDate = new Date(v.start_date)
+ 28:       const diffDays = Math.ceil(
+ 29:         Math.abs(now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+ 30:       )
+ 31:       const months = Math.floor(diffDays / 30)
+ 32: 
+ 33:       if (roi < 0 && diffDays > 60) {
+ 34:         const lost = v.invested - v.returned
+ 35:         alerts.push({
+ 36:           id: `red_${v.id}`,
+ 37:           title: `${v.name} lleva ${months > 0 ? `${months} ${months === 1 ? 'mes' : 'meses'}` : `${diffDays} días`} en déficit`,
+ 38:           description: `Pérdida acumulada de ${formatCurrency(lost)}. Se sugiere revisión de rentabilidad.`,
+ 39:           actionLabel: 'Analizar',
+ 40:           borderColor: '#ef4444',
+ 41:           bgColor: '#FCEBEB',
+ 42:           titleColor: '#991b1b',
+ 43:           actionColor: '#b91c1c',
+ 44:         })
+ 45:       }
+ 46:     })
+ 47: 
+ 48:     // 2. Alerta Verde: Mejor venture (ROI positivo)
+ 49:     if (activeVentures.length > 0) {
+ 50:       let bestVenture = activeVentures[0]
+ 51:       let bestROI = calculateROI(bestVenture.invested, bestVenture.returned)
+ 52: 
+ 53:       for (let i = 1; i < activeVentures.length; i++) {
+ 54:         const currentROI = calculateROI(activeVentures[i].invested, activeVentures[i].returned)
+ 55:         if (currentROI > bestROI) {
+ 56:           bestROI = currentROI
+ 57:           bestVenture = activeVentures[i]
+ 58:         }
+ 59:       }
+ 60: 
+ 61:       if (bestROI > 0) {
+ 62:         alerts.push({
+ 63:           id: 'green_best',
+ 64:           title: `${bestVenture.name} tiene el mayor rendimiento (${formatROI(bestROI)})`,
+ 65:           description: `Venture con mejor desempeño histórico. Evaluar escalabilidad.`,
+ 66:           actionLabel: 'Escalar',
+ 67:           borderColor: '#22c55e',
+ 68:           bgColor: '#EAF3DE',
+ 69:           titleColor: '#14532d',
+ 70:           actionColor: '#15803d',
+ 71:         })
+ 72:       }
+ 73:     }
+ 74: 
+ 75:     // 3. Alerta Amarilla: Gastos mensuales elevados
+ 76:     const expensesByMonth: Record<string, number> = {}
+ 77:     transactions
+ 78:       .filter((t) => t.type === 'expense')
+ 79:       .forEach((t) => {
+ 80:         const key = t.date.substring(0, 7)
+ 81:         expensesByMonth[key] = (expensesByMonth[key] || 0) + t.amount
+ 82:       })
+ 83: 
+ 84:     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+ 85:     const currentExpenses = expensesByMonth[currentMonthKey] || 0
+ 86: 
+ 87:     let past3Sum = 0
+ 88:     let past3Count = 0
+ 89:     for (let i = 1; i <= 3; i++) {
+ 90:       const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+ 91:       const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+ 92:       if (expensesByMonth[k] !== undefined) {
+ 93:         past3Sum += expensesByMonth[k]
+ 94:         past3Count++
+ 95:       }
+ 96:     }
+ 97: 
+ 98:     if (past3Count > 0) {
+ 99:       const avg = past3Sum / past3Count
+100:       if (avg > 0 && currentExpenses > avg * 1.15) {
+101:         const pctOver = (((currentExpenses - avg) / avg) * 100).toFixed(0)
+102:         alerts.push({
+103:           id: 'yellow_expense',
+104:           title: `Incremento de gasto mensual (${pctOver}%)`,
+105:           description: `Gasto actual: ${formatCurrency(currentExpenses)} vs Histórico: ${formatCurrency(avg)}. Se requiere revisión.`,
+106:           actionLabel: 'Revisar',
+107:           borderColor: '#eab308',
+108:           bgColor: '#FAEEDA',
+109:           titleColor: '#713f12',
+110:           actionColor: '#a16207',
+111:         })
+112:       }
+113:     }
+114: 
+115:     // 5. Alerta Gris/Azul: Proyectos en fase de IDEA o CERRADO
+116:     const ideaCount = ventures.filter((v) => v.status === 'idea').length
+117:     const closedCount = ventures.filter((v) => v.status === 'closed').length
+118: 
+119:     if (ideaCount > 0) {
+120:       alerts.push({
+121:         id: 'info_idea',
+122:         title: `Proyectos en fase de validación (${ideaCount})`,
+123:         description: 'Métricas excluidas del cálculo de ROI global actual.',
+124:         actionLabel: 'Ver proyectos',
+125:         borderColor: '#a3a3a3',
+126:         bgColor: '#fafafa',
+127:         titleColor: '#525252',
+128:         actionColor: '#737373',
+129:       })
+130:     }
+131: 
+132:     if (closedCount > 0) {
+133:       alerts.push({
+134:         id: 'info_closed',
+135:         title: `Proyectos inactivos / cerrados (${closedCount})`,
+136:         description: 'Cuentas archivadas. Excluidas del cálculo de flujo activo.',
+137:         actionLabel: 'Ver archivo',
+138:         borderColor: '#a3a3a3',
+139:         bgColor: '#f5f5f5',
+140:         titleColor: '#737373',
+141:         actionColor: '#a3a3a3',
+142:       })
+143:     }
+144: 
+145:     // 6. Alerta Naranja/Roja: Préstamos por vencer
+146:     loans.filter(l => l.status !== 'paid').forEach((loan) => {
+147:       if (!loan.loan_payments) return
+148:       const nextPayment = loan.loan_payments.find(p => p.status === 'pending')
+149:       if (nextPayment) {
+150:         const dueDate = new Date(nextPayment.due_date)
+151:         const diffMs = dueDate.getTime() - now.getTime()
+152:         const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
+153: 
+154:         if (diffDays <= 0) {
+155:           alerts.unshift({
+156:             id: `loan_danger_${loan.id}`,
+157:             title: `Pago Vencido: ${loan.name}`,
+158:             description: `Se debió pagar ${formatCurrency(nextPayment.amount)} el ${formatDate(nextPayment.due_date)}.`,
+159:             actionLabel: 'Pagar ahora',
+160:             borderColor: '#dc2626',
+161:             bgColor: '#fef2f2',
+162:             titleColor: '#991b1b',
+163:             actionColor: '#b91c1c',
+164:           })
+165:         } else if (diffDays <= 7) {
+166:           alerts.unshift({
+167:             id: `loan_warning_${loan.id}`,
+168:             title: `Próximo pago: ${loan.name}`,
+169:             description: `Vence en ${diffDays} día${diffDays !== 1 ? 's' : ''}. Monto: ${formatCurrency(nextPayment.amount)}.`,
+170:             actionLabel: 'Preparar pago',
+171:             borderColor: '#f97316',
+172:             bgColor: '#fff7ed',
+173:             titleColor: '#9a3412',
+174:             actionColor: '#c2410c',
+175:           })
+176:         }
+177:       }
+178:     })
+179: 
+180:     const displayAlerts = alerts.slice(0, 4)
+181:     return { displayAlerts }
+182:   }, [ventures, transactions, loans])
+183: }
+````
+
+## File: frontend/src/features/dashboard/hooks/useVentureStatus.ts
+````typescript
+ 1: import { useMemo } from 'react'
+ 2: import type { Venture } from '@backend/_shared/types'
+ 3: import { calculateROI, ventureHealth, calculateHealth } from '@/shared/lib/metrics'
+ 4: 
+ 5: export type ActionBadge = {
+ 6:   label: string
+ 7:   bg: string
+ 8:   color: string
+ 9:   border: string
+10: }
+11: 
+12: export function getActionBadge(roi: number, diffDays: number, status: string, isPersonal: boolean): ActionBadge {
+13:   if (status === 'paused')
+14:     return { label: 'Pausado', bg: '#f5f5f5', color: '#737373', border: '#e5e5e5' }
+15:     
+16:   if (isPersonal) {
+17:     if (roi < 10) return { label: 'Crítico', bg: '#fef2f2', color: '#dc2626', border: '#fecaca' }
+18:     if (roi < 30) return { label: 'Cuidado', bg: '#fefce8', color: '#a16207', border: '#fde68a' }
+19:     return { label: 'Saludable', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' }
+20:   } else {
+21:     if (roi < -30 || (roi < 0 && diffDays > 120))
+22:       return { label: 'Revisar', bg: '#fef2f2', color: '#dc2626', border: '#fecaca' }
+23:     if (roi < 0)
+24:       return { label: 'En rojo', bg: '#fef2f2', color: '#ef4444', border: '#fecaca' }
+25:     if (roi >= 0 && roi < 15)
+26:       return { label: 'Vigilar', bg: '#fefce8', color: '#a16207', border: '#fde68a' }
+27:     if (roi >= 15 && roi < 40)
+28:       return { label: 'Mantener', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' }
+29:     return { label: 'Escalar', bg: '#f0fdf4', color: '#15803d', border: '#86efac' }
+30:   }
+31: }
+32: 
+33: export function getDotColor(health: string): string {
+34:   if (health === 'positive') return '#22c55e'
+35:   if (health === 'negative') return '#ef4444'
+36:   return '#eab308'
+37: }
+38: 
+39: export function getDaysActive(startDate: string): number {
+40:   const start = new Date(startDate)
+41:   const now = new Date()
+42:   return Math.ceil(Math.abs(now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
+43: }
+44: 
+45: export function formatTimeSince(days: number): string {
+46:   if (days < 30) return `${days} días`
+47:   const months = Math.floor(days / 30)
+48:   return `${months} ${months === 1 ? 'mes' : 'meses'}`
+49: }
+50: 
+51: export interface VentureStatusData {
+52:   venture: Venture
+53:   isPersonal: boolean
+54:   metricValue: number
+55:   health: string
+56:   days: number
+57:   badge: ActionBadge
+58: }
+59: 
+60: export function useVentureStatus(ventures: Venture[]) {
+61:   return useMemo(() => {
+62:     const relevantVentures = ventures.filter(
+63:       (v) => v.status === 'active' || v.status === 'paused'
+64:     )
+65: 
+66:     const redCount = relevantVentures.filter((v) => {
+67:       const isPersonal = v.mode === 'personal'
+68:       if (isPersonal) {
+69:         const health = calculateHealth(v.invested, v.returned)
+70:         return health < 20 && v.status === 'active'
+71:       } else {
+72:         const roi = calculateROI(v.invested, v.returned)
+73:         return roi < 0 && v.status === 'active'
+74:       }
+75:     }).length
+76: 
+77:     const ventureData: VentureStatusData[] = relevantVentures
+78:       .map((v) => {
+79:         const isPersonal = v.mode === 'personal'
+80:         const metricValue = isPersonal 
+81:           ? calculateHealth(v.invested, v.returned)
+82:           : calculateROI(v.invested, v.returned)
+83:           
+84:         const health = isPersonal
+85:           ? (metricValue > 20 ? 'positive' : (metricValue > 0 ? 'neutral' : 'negative'))
+86:           : ventureHealth(metricValue)
+87:           
+88:         const days = getDaysActive(v.start_date)
+89:         const badge = getActionBadge(metricValue, days, v.status, isPersonal)
+90:         return { venture: v, isPersonal, metricValue, health, days, badge }
+91:       })
+92:       .sort((a, b) => b.metricValue - a.metricValue)
+93: 
+94:     return { ventureData, redCount }
+95:   }, [ventures])
+96: }
+````
+
+## File: frontend/src/features/loans/components/LoansSection.view.tsx
+````typescript
+  1: import { useState, useEffect } from 'react'
+  2: import { useLoans } from '../hooks/useLoans'
+  3: import { LoanForm } from './LoanForm'
+  4: import { formatCurrency, formatDate } from '@/shared/lib/formatters'
+  5: 
+  6: interface LoansSectionProps {
+  7:   ventureId: string
+  8: }
+  9: 
+ 10: export function LoansSection({ ventureId }: LoansSectionProps) {
+ 11:   const { loans, loading, fetchLoans, createLoan, deleteLoan } = useLoans(ventureId)
+ 12:   const [showForm, setShowForm] = useState(false)
+ 13:   const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null)
+ 14: 
+ 15:   useEffect(() => {
+ 16:     fetchLoans()
+ 17:   }, [fetchLoans])
+ 18: 
+ 19:   const handleCreate = async (input: any) => {
+ 20:     await createLoan(input)
+ 21:   }
+ 22: 
+ 23:   const toggleExpand = (id: string) => {
+ 24:     setExpandedLoanId((prev) => (prev === id ? null : id))
+ 25:   }
+ 26: 
+ 27:   return (
+ 28:     <div className="animate-fade-in" style={{
+ 29:       backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5',
+ 30:       overflow: 'hidden', animationDelay: '150ms', marginTop: '24px'
+ 31:     }}>
+ 32:       <div style={{
+ 33:         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+ 34:         padding: '16px 20px', borderBottom: '1px solid #f5f5f5',
+ 35:       }}>
+ 36:         <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>
+ 37:           Préstamos & Financiación
+ 38:           <span style={{ color: '#a3a3a3', fontWeight: 400, marginLeft: '6px' }}>({loans.length})</span>
+ 39:         </h2>
+ 40:         <button
+ 41:           onClick={() => setShowForm(true)}
+ 42:           style={{
+ 43:             display: 'inline-flex', alignItems: 'center', gap: '6px',
+ 44:             padding: '6px 12px', borderRadius: '8px',
+ 45:             backgroundColor: '#f5f5f5', color: '#525252', fontSize: '13px', fontWeight: 500,
+ 46:             border: 'none', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+ 47:           }}
+ 48:           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e5e5e5'; e.currentTarget.style.color = '#0a0a0a' }}
+ 49:           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f5f5f5'; e.currentTarget.style.color = '#525252' }}
+ 50:         >
+ 51:           <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+ 52:             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+ 53:           </svg>
+ 54:           Nuevo Préstamo
+ 55:         </button>
+ 56:       </div>
+ 57: 
+ 58:       {loading ? (
+ 59:         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+ 60:           {[...Array(2)].map((_, i) => <div key={i} className="skeleton" style={{ height: '64px', borderRadius: '10px' }} />)}
+ 61:         </div>
+ 62:       ) : loans.length === 0 ? (
+ 63:         <div style={{ textAlign: 'center', padding: '56px 20px' }}>
+ 64:           <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>No hay préstamos registrados</p>
+ 65:         </div>
+ 66:       ) : (
+ 67:         <div style={{ display: 'grid', gap: '12px', padding: '16px' }}>
+ 68:           {loans.map((loan) => {
+ 69:             const hasPayments = loan.loan_payments && loan.loan_payments.length > 0;
+ 70:             const nextPayment = hasPayments ? loan.loan_payments?.find(p => p.status === 'pending') : null;
+ 71:             const isExpanded = expandedLoanId === loan.id;
+ 72: 
+ 73:             return (
+ 74:               <div
+ 75:                 key={loan.id}
+ 76:                 style={{
+ 77:                   border: '1px solid #f0f0f0', borderRadius: '12px',
+ 78:                   backgroundColor: '#fafafa', overflow: 'hidden',
+ 79:                   transition: 'box-shadow 0.2s',
+ 80:                 }}
+ 81:               >
+ 82:                 {/* Cabecera del préstamo */}
+ 83:                 <div 
+ 84:                   onClick={() => toggleExpand(loan.id)}
+ 85:                   style={{
+ 86:                     padding: '16px 20px', display: 'grid', gridTemplateColumns: 'minmax(200px, 1.5fr) 1fr 1fr auto', gap: '24px',
+ 87:                     alignItems: 'center', cursor: 'pointer', transition: 'background-color 0.15s'
+ 88:                   }}
+ 89:                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fdfdfd' }}
+ 90:                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+ 91:                 >
+ 92:                   <div style={{ display: 'flex', flexDirection: 'column' }}>
+ 93:                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+ 94:                       <p style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+ 95:                         {loan.name}
+ 96:                       </p>
+ 97:                       <span style={{ 
+ 98:                         fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 600, letterSpacing: '0.04em',
+ 99:                         backgroundColor: loan.status === 'active' ? '#e0e7ff' : loan.status === 'paid' ? '#dcfce7' : '#fee2e2',
+100:                         color: loan.status === 'active' ? '#4338ca' : loan.status === 'paid' ? '#15803d' : '#b91c1c'
+101:                       }}>
+102:                         {loan.status === 'active' ? 'ACTIVO' : loan.status === 'paid' ? 'PAGADO' : 'MORA'}
+103:                       </span>
+104:                     </div>
+105:                     <p style={{ fontSize: '12px', color: '#737373', margin: 0 }}>
+106:                       Tasa: {loan.interest_rate}% <span style={{ margin: '0 4px', color: '#e5e5e5' }}>|</span> Inició: {formatDate(loan.start_date)}
+107:                     </p>
+108:                   </div>
+109:                   
+110:                   <div style={{ display: 'flex', flexDirection: 'column' }}>
+111:                     <span style={{ fontSize: '11px', color: '#a3a3a3', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Monto Restante</span>
+112:                     <span style={{ fontSize: '14px', fontWeight: 600, color: '#171717' }}>{formatCurrency(loan.principal)}</span>
+113:                   </div>
+114:                   
+115:                   <div>
+116:                     {nextPayment ? (
+117:                       <div style={{ display: 'flex', flexDirection: 'column' }}>
+118:                         <span style={{ fontSize: '11px', color: '#c2410c', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+119:                           <span style={{ width: '6px', height: '6px', backgroundColor: '#f97316', borderRadius: '50%' }} />
+120:                           Próx ({formatDate(nextPayment.due_date)})
+121:                         </span>
+122:                         <span style={{ fontSize: '14px', fontWeight: 600, color: '#b45309' }}>{formatCurrency(nextPayment.amount)}</span>
+123:                       </div>
+124:                     ) : hasPayments ? (
+125:                       <div style={{ display: 'flex', flexDirection: 'column' }}>
+126:                         <span style={{ fontSize: '11px', color: '#16a34a', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '4px' }}>
+127:                           <span style={{ width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%' }} />
+128:                           Al día
+129:                         </span>
+130:                         <span style={{ fontSize: '14px', fontWeight: 500, color: '#15803d' }}>Completado</span>
+131:                       </div>
+132:                     ) : (
+133:                       <div style={{ display: 'flex', flexDirection: 'column' }}>
+134:                         <span style={{ fontSize: '11px', color: '#737373', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Estado</span>
+135:                         <span style={{ fontSize: '14px', fontWeight: 500, color: '#525252' }}>Sin cuotas</span>
+136:                       </div>
+137:                     )}
+138:                   </div>
+139: 
+140:                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+141:                     <button
+142:                       onClick={(e) => { e.stopPropagation(); deleteLoan(loan.id); }}
+143:                       style={{
+144:                         padding: '6px', borderRadius: '6px', background: 'transparent', border: 'none',
+145:                         cursor: 'pointer', color: '#d4d4d4', transition: 'all 0.15s', display: 'flex', alignItems: 'center',
+146:                       }}
+147:                       onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = '#fef2f2' }}
+148:                       onMouseLeave={(e) => { e.currentTarget.style.color = '#d4d4d4'; e.currentTarget.style.backgroundColor = 'transparent' }}
+149:                       title="Eliminar"
+150:                     >
+151:                       <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+152:                         <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+153:                       </svg>
+154:                     </button>
+155:                     <div style={{ color: '#a3a3a3', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
+156:                       <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+157:                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+158:                       </svg>
+159:                     </div>
+160:                   </div>
+161:                 </div>
+162: 
+163:                 {/* Detalles Expandidos (Cronograma) */}
+164:                 {isExpanded && (
+165:                   <div style={{ borderTop: '1px solid #f0f0f0', backgroundColor: '#fff', padding: '16px' }}>
+166:                     <h4 style={{ fontSize: '13px', fontWeight: 600, color: '#171717', margin: '0 0 12px' }}>
+167:                       Historial y Próximas Cuotas
+168:                     </h4>
+169:                     {hasPayments ? (
+170:                       <div style={{ display: 'grid', gap: '8px' }}>
+171:                         {loan.loan_payments!.map((payment) => (
+172:                           <div key={payment.id} style={{
+173:                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+174:                             padding: '10px 12px', border: '1px solid #f5f5f5', borderRadius: '8px',
+175:                             backgroundColor: payment.status === 'paid' ? '#fcfcfc' : payment.status === 'pending' ? '#fff' : '#fef2f2',
+176:                             opacity: payment.status === 'paid' ? 0.7 : 1
+177:                           }}>
+178:                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+179:                               <div style={{
+180:                                 width: '8px', height: '8px', borderRadius: '50%',
+181:                                 backgroundColor: payment.status === 'paid' ? '#16a34a' : payment.status === 'pending' ? '#f97316' : '#dc2626'
+182:                               }} />
+183:                               <div>
+184:                                 <p style={{ fontSize: '12px', color: '#525252', margin: 0, fontWeight: 500 }}>
+185:                                   {formatDate(payment.due_date)} {payment.payment_date && `(Pagado: ${formatDate(payment.payment_date)})`}
+186:                                 </p>
+187:                                 <p style={{ fontSize: '11px', color: '#a3a3a3', margin: '2px 0 0' }}>
+188:                                   Monto total: {formatCurrency(payment.amount)}
+189:                                 </p>
+190:                               </div>
+191:                             </div>
+192:                             <div style={{ textAlign: 'right' }}>
+193:                               <p style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: 0 }}>
+194:                                 {formatCurrency(payment.amount)}
+195:                               </p>
+196:                               <p style={{ fontSize: '11px', color: payment.status === 'paid' ? '#16a34a' : payment.status === 'pending' ? '#f97316' : '#dc2626', margin: '2px 0 0', fontWeight: 500 }}>
+197:                                 {payment.status === 'paid' ? 'Pagado' : payment.status === 'pending' ? 'Pendiente' : 'Atrasado'}
+198:                               </p>
+199:                             </div>
+200:                           </div>
+201:                         ))}
+202:                       </div>
+203:                     ) : (
+204:                       <p style={{ fontSize: '13px', color: '#737373', margin: 0, fontStyle: 'italic' }}>
+205:                         No hay cuotas programadas para este préstamo.
+206:                       </p>
+207:                     )}
+208:                   </div>
+209:                 )}
+210:               </div>
+211:             )
+212:           })}
+213:         </div>
+214:       )}
+215: 
+216:       {showForm && (
+217:         <LoanForm 
+218:           ventureId={ventureId} 
+219:           onSubmit={handleCreate} 
+220:           onClose={() => setShowForm(false)} 
+221:         />
+222:       )}
+223:     </div>
+224:   )
+225: }
 ````
 
 ## File: frontend/src/features/loans/hooks/useLoans.ts
@@ -1691,24 +2812,494 @@ package.json
 41: }
 ````
 
-## File: frontend/src/features/settings/pages/SettingsKeywordsPage.tsx
+## File: frontend/src/features/settings/components/KeywordsManager.view.tsx
 ````typescript
-1: // pages/SettingsKeywordsPage.tsx — shell
-2: import { KeywordsManager } from '@/features/settings/components/KeywordsManager'
-3: 
-4: export default function SettingsKeywordsPage() {
-5:   return <KeywordsManager />
-6: }
+  1: // features/settings/components/KeywordsManager.tsx — Gestión monocromática
+  2: import { useState, useEffect } from 'react'
+  3: import { useKeywords } from '../hooks/useKeywords'
+  4: 
+  5: const inputStyle: React.CSSProperties = {
+  6:   padding: '10px 14px',
+  7:   borderRadius: '8px',
+  8:   backgroundColor: '#fafafa',
+  9:   border: '1px solid #e5e5e5',
+ 10:   color: '#171717',
+ 11:   fontSize: '14px',
+ 12:   outline: 'none',
+ 13:   fontFamily: 'inherit',
+ 14:   transition: 'border-color 0.15s',
+ 15: }
+ 16: 
+ 17: export function KeywordsManager() {
+ 18:   const { incomeKeywords, expenseKeywords, loading, saving, addKeyword, removeKeyword } = useKeywords()
+ 19:   const [newKeyword, setNewKeyword] = useState('')
+ 20:   const [newType, setNewType] = useState<'income' | 'expense'>('expense')
+ 21: 
+ 22:   const handleAdd = async () => {
+ 23:     const success = await addKeyword(newKeyword, newType)
+ 24:     if (success) {
+ 25:       setNewKeyword('')
+ 26:     }
+ 27:   }
+ 28: 
+ 29:   if (loading) {
+ 30:     return (
+ 31:       <div style={{ maxWidth: '480px' }}>
+ 32:         <div className="skeleton" style={{ height: '28px', width: '180px', marginBottom: '12px' }} />
+ 33:         <div className="skeleton" style={{ height: '280px', borderRadius: '14px' }} />
+ 34:       </div>
+ 35:     )
+ 36:   }
+ 37: 
+ 38:   return (
+ 39:     <div className="animate-fade-in" style={{ maxWidth: '560px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+ 40:       {/* Header */}
+ 41:       <div>
+ 42:         <button
+ 43:           onClick={() => window.history.back()}
+ 44:           style={{
+ 45:             display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#737373',
+ 46:             background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '4px',
+ 47:             transition: 'color 0.15s',
+ 48:           }}
+ 49:           onMouseEnter={(e) => { e.currentTarget.style.color = '#0a0a0a' }}
+ 50:           onMouseLeave={(e) => { e.currentTarget.style.color = '#737373' }}
+ 51:         >
+ 52:           <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+ 53:             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+ 54:           </svg>
+ 55:           Atrás
+ 56:         </button>
+ 57:         <h1 style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>Palabras clave</h1>
+ 58:         <p style={{ fontSize: '14px', color: '#737373', margin: '2px 0 0' }}>
+ 59:           Cuando envíes un mensaje por WhatsApp con estas palabras, se clasificará automáticamente como ingreso o gasto.
+ 60:         </p>
+ 61:       </div>
+ 62: 
+ 63:       {/* Add keyword */}
+ 64:       <div style={{
+ 65:         backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5', padding: '20px',
+ 66:       }}>
+ 67:         <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: '0 0 12px' }}>Agregar palabra clave</h3>
+ 68:         <div style={{ display: 'flex', gap: '8px' }}>
+ 69:           <input
+ 70:             value={newKeyword}
+ 71:             onChange={(e) => setNewKeyword(e.target.value)}
+ 72:             placeholder="Ej: venta, compra, pago..."
+ 73:             style={{ ...inputStyle, flex: 1 }}
+ 74:             onFocus={(e) => { e.currentTarget.style.borderColor = '#a3a3a3' }}
+ 75:             onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e5e5' }}
+ 76:             onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
+ 77:           />
+ 78:           <select
+ 79:             value={newType}
+ 80:             onChange={(e) => setNewType(e.target.value as 'income' | 'expense')}
+ 81:             style={{ ...inputStyle, cursor: 'pointer', width: 'auto' }}
+ 82:           >
+ 83:             <option value="expense">Gasto</option>
+ 84:             <option value="income">Ingreso</option>
+ 85:           </select>
+ 86:           <button
+ 87:             onClick={handleAdd}
+ 88:             disabled={saving || !newKeyword.trim()}
+ 89:             style={{
+ 90:               padding: '10px 16px', borderRadius: '8px', border: 'none',
+ 91:               backgroundColor: '#0a0a0a', color: '#fafafa', fontSize: '14px', fontWeight: 600,
+ 92:               cursor: (saving || !newKeyword.trim()) ? 'not-allowed' : 'pointer',
+ 93:               transition: 'all 0.15s', opacity: (saving || !newKeyword.trim()) ? 0.4 : 1,
+ 94:             }}
+ 95:             onMouseEnter={(e) => { if (!saving) e.currentTarget.style.backgroundColor = '#262626' }}
+ 96:             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0a0a0a' }}
+ 97:           >
+ 98:             {saving ? '...' : '+'}
+ 99:           </button>
+100:         </div>
+101:       </div>
+102: 
+103:       {/* Keywords lists */}
+104:       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+105:         {/* Income */}
+106:         <div style={{ backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5', padding: '20px' }}>
+107:           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+108:             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
+109:             <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>Ingresos</h3>
+110:             <span style={{ fontSize: '12px', color: '#a3a3a3' }}>({incomeKeywords.length})</span>
+111:           </div>
+112:           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+113:             {incomeKeywords.length === 0 ? (
+114:               <p style={{ fontSize: '13px', color: '#a3a3a3' }}>Sin keywords de ingreso</p>
+115:             ) : incomeKeywords.map((k) => (
+116:               <div key={k.id} style={{
+117:                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+118:                 padding: '8px 12px', borderRadius: '8px', backgroundColor: '#f0fdf4',
+119:                 transition: 'background-color 0.15s',
+120:               }}>
+121:                 <span style={{ fontSize: '13px', color: '#166534', fontWeight: 500 }}>{k.keyword}</span>
+122:                 <button
+123:                   onClick={() => removeKeyword(k.id)}
+124:                   style={{
+125:                     padding: '2px', background: 'none', border: 'none', cursor: 'pointer',
+126:                     color: '#a3a3a3', display: 'flex', transition: 'color 0.15s',
+127:                   }}
+128:                   onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626' }}
+129:                   onMouseLeave={(e) => { e.currentTarget.style.color = '#a3a3a3' }}
+130:                 >
+131:                   <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+132:                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+133:                   </svg>
+134:                 </button>
+135:               </div>
+136:             ))}
+137:           </div>
+138:         </div>
+139: 
+140:         {/* Expense */}
+141:         <div style={{ backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5', padding: '20px' }}>
+142:           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+143:             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
+144:             <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>Gastos</h3>
+145:             <span style={{ fontSize: '12px', color: '#a3a3a3' }}>({expenseKeywords.length})</span>
+146:           </div>
+147:           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+148:             {expenseKeywords.length === 0 ? (
+149:               <p style={{ fontSize: '13px', color: '#a3a3a3' }}>Sin keywords de gasto</p>
+150:             ) : expenseKeywords.map((k) => (
+151:               <div key={k.id} style={{
+152:                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+153:                 padding: '8px 12px', borderRadius: '8px', backgroundColor: '#fef2f2',
+154:                 transition: 'background-color 0.15s',
+155:               }}>
+156:                 <span style={{ fontSize: '13px', color: '#991b1b', fontWeight: 500 }}>{k.keyword}</span>
+157:                 <button
+158:                   onClick={() => removeKeyword(k.id)}
+159:                   style={{
+160:                     padding: '2px', background: 'none', border: 'none', cursor: 'pointer',
+161:                     color: '#a3a3a3', display: 'flex', transition: 'color 0.15s',
+162:                   }}
+163:                   onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626' }}
+164:                   onMouseLeave={(e) => { e.currentTarget.style.color = '#a3a3a3' }}
+165:                 >
+166:                   <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+167:                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+168:                   </svg>
+169:                 </button>
+170:               </div>
+171:             ))}
+172:           </div>
+173:         </div>
+174:       </div>
+175:     </div>
+176:   )
+177: }
 ````
 
-## File: frontend/src/features/settings/pages/SettingsWhatsAppPage.tsx
+## File: frontend/src/features/settings/components/WhatsAppSettings.view.tsx
 ````typescript
-1: // pages/SettingsWhatsAppPage.tsx — shell
-2: import { WhatsAppSettings } from '@/features/settings/components/WhatsAppSettings'
-3: 
-4: export default function SettingsWhatsAppPage() {
-5:   return <WhatsAppSettings />
-6: }
+  1: import { useWhatsAppSettings } from '../hooks/useWhatsAppSettings'
+  2: 
+  3: const inputStyle: React.CSSProperties = {
+  4:   width: '100%',
+  5:   padding: '10px 14px',
+  6:   borderRadius: '8px',
+  7:   backgroundColor: '#fafafa',
+  8:   border: '1px solid #e5e5e5',
+  9:   color: '#171717',
+ 10:   fontSize: '14px',
+ 11:   outline: 'none',
+ 12:   fontFamily: 'inherit',
+ 13:   transition: 'border-color 0.15s',
+ 14: }
+ 15: 
+ 16: export function WhatsAppSettings() {
+ 17:   const {
+ 18:     phoneNumberId, setPhoneNumberId,
+ 19:     accessToken, setAccessToken,
+ 20:     verifyToken, setVerifyToken,
+ 21:     saving,
+ 22:     loading,
+ 23:     success,
+ 24:     error,
+ 25:     saveSettings
+ 26:   } = useWhatsAppSettings()
+ 27: 
+ 28:   if (loading) {
+ 29:     return (
+ 30:       <div style={{ maxWidth: '480px' }}>
+ 31:         <div className="skeleton" style={{ height: '28px', width: '180px', marginBottom: '12px' }} />
+ 32:         <div className="skeleton" style={{ height: '280px', borderRadius: '14px' }} />
+ 33:       </div>
+ 34:     )
+ 35:   }
+ 36: 
+ 37:   return (
+ 38:     <div className="animate-fade-in" style={{ maxWidth: '480px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+ 39:       {/* Header */}
+ 40:       <div>
+ 41:         <button
+ 42:           onClick={() => window.history.back()}
+ 43:           style={{
+ 44:             display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#737373',
+ 45:             background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '4px',
+ 46:             transition: 'color 0.15s',
+ 47:           }}
+ 48:           onMouseEnter={(e) => { e.currentTarget.style.color = '#0a0a0a' }}
+ 49:           onMouseLeave={(e) => { e.currentTarget.style.color = '#737373' }}
+ 50:         >
+ 51:           <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+ 52:             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+ 53:           </svg>
+ 54:           Atrás
+ 55:         </button>
+ 56:         <h1 style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>API de WhatsApp</h1>
+ 57:         <p style={{ fontSize: '14px', color: '#737373', margin: '2px 0 0' }}>
+ 58:           Conecta tu número de Meta Business para recibir transacciones vía WhatsApp
+ 59:         </p>
+ 60:       </div>
+ 61: 
+ 62:       {/* Form card */}
+ 63:       <div style={{
+ 64:         backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5', padding: '24px',
+ 65:       }}>
+ 66:         <form onSubmit={saveSettings} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+ 67:           <div>
+ 68:             <label htmlFor="wa-phone-id" style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#525252', marginBottom: '6px' }}>Phone Number ID</label>
+ 69:             <input
+ 70:               id="wa-phone-id" value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)}
+ 71:               placeholder="1234567890" style={inputStyle}
+ 72:               onFocus={(e) => { e.currentTarget.style.borderColor = '#a3a3a3' }}
+ 73:               onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e5e5' }}
+ 74:             />
+ 75:           </div>
+ 76:           <div>
+ 77:             <label htmlFor="wa-token" style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#525252', marginBottom: '6px' }}>Access Token</label>
+ 78:             <input
+ 79:               id="wa-token" type="password" value={accessToken}
+ 80:               onFocus={() => { if (accessToken.startsWith('•')) setAccessToken('') }}
+ 81:               onChange={(e) => setAccessToken(e.target.value)}
+ 82:               placeholder="EAAxxxxxxx..." style={inputStyle}
+ 83:             />
+ 84:             <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '4px 0 0' }}>Se almacena encriptado en la base de datos</p>
+ 85:           </div>
+ 86:           <div>
+ 87:             <label htmlFor="wa-verify" style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#525252', marginBottom: '6px' }}>Verify Token</label>
+ 88:             <input
+ 89:               id="wa-verify" value={verifyToken} onChange={(e) => setVerifyToken(e.target.value)}
+ 90:               placeholder="mi_token_secreto" style={inputStyle}
+ 91:               onFocus={(e) => { e.currentTarget.style.borderColor = '#a3a3a3' }}
+ 92:               onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e5e5' }}
+ 93:             />
+ 94:             <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '4px 0 0' }}>Usado por Meta para verificar tu webhook</p>
+ 95:           </div>
+ 96: 
+ 97:           {error && (
+ 98:             <div className="animate-fade-in" style={{
+ 99:               padding: '12px', borderRadius: '8px', backgroundColor: '#fef2f2',
+100:               color: '#dc2626', fontSize: '13px', border: '1px solid #fecaca',
+101:             }}>
+102:               {error}
+103:             </div>
+104:           )}
+105:           {success && (
+106:             <div className="animate-fade-in" style={{
+107:               padding: '12px', borderRadius: '8px', backgroundColor: '#f0fdf4',
+108:               color: '#16a34a', fontSize: '13px', border: '1px solid #bbf7d0',
+109:             }}>
+110:               {success}
+111:             </div>
+112:           )}
+113: 
+114:           <button
+115:             type="submit" disabled={saving}
+116:             style={{
+117:               width: '100%', padding: '10px 16px', borderRadius: '10px', border: 'none',
+118:               backgroundColor: '#0a0a0a', color: '#fafafa', fontSize: '14px', fontWeight: 600,
+119:               cursor: saving ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
+120:               opacity: saving ? 0.5 : 1, display: 'flex', alignItems: 'center',
+121:               justifyContent: 'center', gap: '8px', fontFamily: 'inherit',
+122:             }}
+123:             onMouseEnter={(e) => { if (!saving) e.currentTarget.style.backgroundColor = '#262626' }}
+124:             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0a0a0a' }}
+125:           >
+126:             {saving && (
+127:               <svg className="animate-spin" style={{ width: '16px', height: '16px' }} viewBox="0 0 24 24" fill="none">
+128:                 <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+129:                 <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+130:               </svg>
+131:             )}
+132:             Guardar configuración
+133:           </button>
+134:         </form>
+135:       </div>
+136: 
+137:       {/* Webhook URL info */}
+138:       <div style={{
+139:         backgroundColor: '#f5f5f5', borderRadius: '14px', padding: '20px',
+140:         border: '1px solid #e5e5e5',
+141:       }}>
+142:         <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: '0 0 8px' }}>URL del Webhook</h3>
+143:         <code style={{
+144:           display: 'block', padding: '10px 14px', borderRadius: '8px',
+145:           backgroundColor: '#fff', border: '1px solid #e5e5e5',
+146:           fontSize: '12px', color: '#525252', wordBreak: 'break-all',
+147:           fontFamily: 'monospace',
+148:         }}>
+149:           {import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook
+150:         </code>
+151:         <p style={{ fontSize: '12px', color: '#737373', margin: '8px 0 0' }}>
+152:           Configura esta URL en tu app de Meta Business como endpoint del webhook de WhatsApp.
+153:         </p>
+154:       </div>
+155:     </div>
+156:   )
+157: }
+````
+
+## File: frontend/src/features/settings/hooks/useKeywords.ts
+````typescript
+ 1: import { useState, useEffect, useCallback } from 'react'
+ 2: import { supabase } from '@/shared/lib/supabase'
+ 3: 
+ 4: export interface Keyword {
+ 5:   id: string
+ 6:   keyword: string
+ 7:   type: 'income' | 'expense'
+ 8: }
+ 9: 
+10: export function useKeywords() {
+11:   const [keywords, setKeywords] = useState<Keyword[]>([])
+12:   const [loading, setLoading] = useState(true)
+13:   const [saving, setSaving] = useState(false)
+14: 
+15:   const fetchKeywords = useCallback(async () => {
+16:     setLoading(true)
+17:     const { data, error } = await supabase.functions.invoke('user-settings/keywords', { method: 'GET' })
+18:     if (!error && data) {
+19:       setKeywords(data.data || [])
+20:     }
+21:     setLoading(false)
+22:   }, [])
+23: 
+24:   useEffect(() => {
+25:     fetchKeywords()
+26:   }, [fetchKeywords])
+27: 
+28:   const addKeyword = async (keyword: string, type: 'income' | 'expense') => {
+29:     if (!keyword.trim()) return false
+30:     setSaving(true)
+31:     const { data, error } = await supabase.functions.invoke('user-settings/keywords', {
+32:       method: 'POST',
+33:       body: { keyword: keyword.trim().toLowerCase(), type },
+34:     })
+35:     setSaving(false)
+36:     if (!error && data) {
+37:       setKeywords((prev) => [...prev, data.data])
+38:       return true
+39:     }
+40:     return false
+41:   }
+42: 
+43:   const removeKeyword = async (id: string) => {
+44:     await supabase.functions.invoke(`user-settings/keywords/${id}`, { method: 'DELETE' })
+45:     setKeywords((prev) => prev.filter((k) => k.id !== id))
+46:   }
+47: 
+48:   return {
+49:     keywords,
+50:     incomeKeywords: keywords.filter(k => k.type === 'income'),
+51:     expenseKeywords: keywords.filter(k => k.type === 'expense'),
+52:     loading,
+53:     saving,
+54:     addKeyword,
+55:     removeKeyword
+56:   }
+57: }
+````
+
+## File: frontend/src/features/settings/hooks/useWhatsAppSettings.ts
+````typescript
+ 1: import { useState, useEffect, useCallback } from 'react'
+ 2: import { supabase } from '@/shared/lib/supabase'
+ 3: import { useAuthStore } from '@/features/auth/store'
+ 4: 
+ 5: export function useWhatsAppSettings() {
+ 6:   const [phoneNumberId, setPhoneNumberId] = useState('')
+ 7:   const [accessToken, setAccessToken] = useState('')
+ 8:   const [verifyToken, setVerifyToken] = useState('')
+ 9:   const [saving, setSaving] = useState(false)
+10:   const [loading, setLoading] = useState(true)
+11:   const [success, setSuccess] = useState<string | null>(null)
+12:   const [error, setError] = useState<string | null>(null)
+13:   
+14:   const session = useAuthStore((s) => s.session)
+15: 
+16:   const fetchSettings = useCallback(async () => {
+17:     if (!session?.access_token) {
+18:       setLoading(false)
+19:       return
+20:     }
+21:     const headers = { Authorization: `Bearer ${session.access_token}` }
+22:     const { data, error: err } = await supabase.functions.invoke('user-settings/integrations', {
+23:       method: 'GET',
+24:       headers,
+25:     })
+26:     if (!err && data) {
+27:       const d = data.data
+28:       if (d) {
+29:         setPhoneNumberId(d.whatsapp_phone_number_id || '')
+30:         setVerifyToken(d.whatsapp_verify_token || '')
+31:         setAccessToken(d.has_access_token ? '••••••••' : '')
+32:       }
+33:     }
+34:     setLoading(false)
+35:   }, [session?.access_token])
+36: 
+37:   useEffect(() => {
+38:     fetchSettings()
+39:   }, [fetchSettings])
+40: 
+41:   const saveSettings = async (e: React.FormEvent) => {
+42:     e.preventDefault()
+43:     setError(null)
+44:     setSuccess(null)
+45:     setSaving(true)
+46:     try {
+47:       const body: Record<string, string> = {
+48:         whatsapp_phone_number_id: phoneNumberId,
+49:         whatsapp_verify_token: verifyToken,
+50:       }
+51:       if (accessToken && !accessToken.startsWith('•')) {
+52:         body.whatsapp_access_token = accessToken
+53:       }
+54: 
+55:       const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
+56:       const { error: err } = await supabase.functions.invoke('user-settings/integrations', {
+57:         method: 'PUT',
+58:         body,
+59:         headers,
+60:       })
+61:       
+62:       if (err) {
+63:         throw new Error(err.message || 'Error saving settings')
+64:       }
+65:       setSuccess('Configuración guardada')
+66:     } catch (err: unknown) {
+67:       setError(err instanceof Error ? err.message : 'Error al guardar')
+68:     } finally {
+69:       setSaving(false)
+70:     }
+71:   }
+72: 
+73:   return {
+74:     phoneNumberId, setPhoneNumberId,
+75:     accessToken, setAccessToken,
+76:     verifyToken, setVerifyToken,
+77:     saving,
+78:     loading,
+79:     success,
+80:     error,
+81:     saveSettings
+82:   }
+83: }
 ````
 
 ## File: frontend/src/features/transactions/hooks/useCategories.ts
@@ -1784,24 +3375,583 @@ package.json
 8: } from '@backend/_shared/types'
 ````
 
-## File: frontend/src/features/ventures/pages/VentureDetailPage.tsx
+## File: frontend/src/features/ventures/components/VentureDetail.view.tsx
 ````typescript
-1: // pages/VentureDetailPage.tsx — shell del detalle de venture
-2: import { VentureDetail } from '@/features/ventures/components/VentureDetail'
-3: 
-4: export default function VentureDetailPage() {
-5:   return <VentureDetail />
-6: }
+  1: // features/ventures/components/VentureDetail.tsx — Vista de detalle monochrome
+  2: import { useEffect, useState } from 'react'
+  3: import { useParams, useNavigate } from 'react-router-dom'
+  4: 
+  5: import { useTransactions } from '@/features/transactions/hooks/useTransactions'
+  6: import { useAuthStore } from '@/features/auth/store'
+  7: import { TransactionForm } from '@/features/transactions/components/TransactionForm'
+  8: import { formatCurrency, formatDate, formatROI } from '@/shared/lib/formatters'
+  9: import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS } from '@/shared/lib/constants'
+ 10: import { useVentureDetail } from '../hooks/useVentureDetail'
+ 11: import { VentureForm } from './VentureForm'
+ 12: import { LoansSection } from '@/features/loans/components/LoansSection.view'
+ 13: 
+ 14: 
+ 15: export function VentureDetail() {
+ 16:   const { id } = useParams<{ id: string }>()
+ 17:   const [showTxForm, setShowTxForm] = useState(false)
+ 18:   const [showEditForm, setShowEditForm] = useState(false)
+ 19:   
+ 20:   const { venture, loading, metrics, handleEditVenture, handleDeleteVenture } = useVentureDetail(id)
+ 21:   const navigate = useNavigate()
+ 22: 
+ 23:   const { transactions, loading: txLoading, fetchTransactions, createTransaction, deleteTransaction, total, page, pageSize } = useTransactions(id)
+ 24:   
+ 25:   const [searchTerm, setSearchTerm] = useState('')
+ 26:   const [currentPage, setCurrentPage] = useState(1)
+ 27: 
+ 28:   const session = useAuthStore((s) => s.session)
+ 29: 
+ 30:   useEffect(() => {
+ 31:     if (id && session?.access_token) {
+ 32:       const delay = setTimeout(() => {
+ 33:         fetchTransactions({ ventureId: id, page: currentPage, pageSize: 10, search: searchTerm })
+ 34:       }, 300)
+ 35:       return () => clearTimeout(delay)
+ 36:     }
+ 37:   }, [id, currentPage, searchTerm, fetchTransactions, session?.access_token])
+ 38: 
+ 39:   if (loading || !venture) {
+ 40:     return (
+ 41:       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+ 42:         <div className="skeleton" style={{ height: '28px', width: '180px' }} />
+ 43:         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+ 44:           {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: '80px', borderRadius: '14px' }} />)}
+ 45:         </div>
+ 46:         <div className="skeleton" style={{ height: '320px', borderRadius: '14px' }} />
+ 47:       </div>
+ 48:     )
+ 49:   }
+ 50: 
+ 51:   if (!metrics) return null
+ 52:   const { isPersonal, metricValue, net, remaining, healthColor, netColor, labels } = metrics
+ 53: 
+ 54:   return (
+ 55:     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+ 56:       {/* Header */}
+ 57:       <div className="animate-fade-in" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+ 58:         <div>
+ 59:           <button
+ 60:             onClick={() => navigate('/ventures')}
+ 61:             style={{
+ 62:               display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#737373',
+ 63:               background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '4px',
+ 64:               transition: 'color 0.15s',
+ 65:             }}
+ 66:             onMouseEnter={(e) => { e.currentTarget.style.color = '#0a0a0a' }}
+ 67:             onMouseLeave={(e) => { e.currentTarget.style.color = '#737373' }}
+ 68:           >
+ 69:             <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+ 70:               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+ 71:             </svg>
+ 72:             Ventures
+ 73:           </button>
+ 74:           <h1 style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>{venture.name}</h1>
+ 75:           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+ 76:             <span style={{ fontSize: '13px', color: '#737373' }}>{VENTURE_TYPE_LABELS[venture.type]}</span>
+ 77:             <span style={{ color: '#d4d4d4' }}>·</span>
+ 78:             <span style={{ fontSize: '13px', color: '#737373' }}>{VENTURE_STATUS_LABELS[venture.status]}</span>
+ 79:             {venture.notes && (
+ 80:               <>
+ 81:                 <span style={{ color: '#d4d4d4' }}>·</span>
+ 82:                 <span style={{ fontSize: '13px', color: '#a3a3a3' }}>{venture.notes}</span>
+ 83:               </>
+ 84:             )}
+ 85:           </div>
+ 86:         </div>
+ 87:         <div style={{ display: 'flex', gap: '8px' }}>
+ 88:           <button
+ 89:             onClick={() => setShowEditForm(true)}
+ 90:             style={{
+ 91:               padding: '8px 14px', borderRadius: '10px', border: '1px solid #e5e5e5',
+ 92:               backgroundColor: '#fff', color: '#525252', fontSize: '13px', fontWeight: 500,
+ 93:               cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+ 94:             }}
+ 95:             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f5f5f5' }}
+ 96:             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff' }}
+ 97:           >
+ 98:             Editar
+ 99:           </button>
+100:           <button
+101:             onClick={handleDeleteVenture}
+102:             style={{
+103:               padding: '8px 14px', borderRadius: '10px', border: '1px solid #fecaca',
+104:               backgroundColor: '#fff', color: '#dc2626', fontSize: '13px', fontWeight: 500,
+105:               cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+106:             }}
+107:             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fef2f2' }}
+108:             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff' }}
+109:           >
+110:             Eliminar
+111:           </button>
+112:         </div>
+113:       </div>
+114: 
+115:       {/* Stats grid */}
+116:       <div className="animate-fade-in grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ animationDelay: '50ms' }}>
+117:         {[
+118:           { label: labels.invested, value: formatCurrency(venture.invested), color: '#0a0a0a' },
+119:           { label: labels.returned, value: formatCurrency(venture.returned), color: '#0a0a0a' },
+120:           { label: labels.roi, value: isPersonal ? `${metricValue}%` : formatROI(metricValue), color: healthColor },
+121:           { 
+122:             label: isPersonal ? 'Disponible' : (net >= 0 ? 'Ganancia' : 'Por recuperar'), 
+123:             value: formatCurrency(isPersonal ? Math.max(0, venture.invested - venture.returned) : (net >= 0 ? net : remaining)), 
+124:             color: netColor 
+125:           },
+126:         ].map((stat) => (
+127:           <div key={stat.label} style={{
+128:             backgroundColor: '#fff', borderRadius: '14px', padding: '16px 20px',
+129:             border: '1px solid #e5e5e5',
+130:           }}>
+131:             <p style={{ fontSize: '12px', color: '#737373', margin: '0 0 4px' }}>{stat.label}</p>
+132:             <p style={{ fontSize: '18px', fontWeight: 700, color: stat.color, margin: 0, letterSpacing: '-0.02em' }}>{stat.value}</p>
+133:           </div>
+134:         ))}
+135:       </div>
+136: 
+137:       {/* Transactions */}
+138:       <div className="animate-fade-in" style={{
+139:         backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5',
+140:         overflow: 'hidden', animationDelay: '100ms',
+141:       }}>
+142:         <div style={{
+143:           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+144:           padding: '16px 20px', borderBottom: '1px solid #f5f5f5', flexWrap: 'wrap', gap: '12px'
+145:         }}>
+146:           <div>
+147:             <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>
+148:               Transacciones
+149:               <span style={{ color: '#a3a3a3', fontWeight: 400, marginLeft: '6px' }}>({total})</span>
+150:             </h2>
+151:           </div>
+152:           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+153:             <input 
+154:               type="text" 
+155:               placeholder="Buscar..." 
+156:               value={searchTerm}
+157:               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
+158:               className="form-input"
+159:               style={{ padding: '6px 12px', fontSize: '13px', width: '200px' }}
+160:             />
+161:             <button
+162:               onClick={() => setShowTxForm(true)}
+163:             style={{
+164:               display: 'inline-flex', alignItems: 'center', gap: '6px',
+165:               padding: '6px 12px', borderRadius: '8px',
+166:               backgroundColor: '#f5f5f5', color: '#525252', fontSize: '13px', fontWeight: 500,
+167:               border: 'none', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
+168:             }}
+169:             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e5e5e5'; e.currentTarget.style.color = '#0a0a0a' }}
+170:             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f5f5f5'; e.currentTarget.style.color = '#525252' }}
+171:           >
+172:             <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+173:               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+174:             </svg>
+175:             Agregar
+176:           </button>
+177:           </div>
+178:         </div>
+179: 
+180:         {txLoading ? (
+181:           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+182:             {[...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: '48px', borderRadius: '10px' }} />)}
+183:           </div>
+184:         ) : transactions.length === 0 ? (
+185:           <div style={{ textAlign: 'center', padding: '56px 20px' }}>
+186:             <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>Sin transacciones aún</p>
+187:             <button
+188:               onClick={() => setShowTxForm(true)}
+189:               style={{
+190:                 marginTop: '8px', fontSize: '14px', color: '#0a0a0a', fontWeight: 500,
+191:                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
+192:                 textDecoration: 'underline', textUnderlineOffset: '4px',
+193:               }}
+194:             >
+195:               Registrar la primera
+196:             </button>
+197:           </div>
+198:         ) : (
+199:           <div>
+200:             {transactions.map((tx, i) => (
+201:               <div
+202:                 key={tx.id}
+203:                 style={{
+204:                   display: 'flex', alignItems: 'center', gap: '14px',
+205:                   padding: '12px 20px', transition: 'background-color 0.15s',
+206:                   borderTop: i > 0 ? '1px solid #fafafa' : 'none',
+207:                 }}
+208:                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fafafa' }}
+209:                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
+210:               >
+211:                 <div style={{
+212:                   width: '32px', height: '32px', borderRadius: '8px',
+213:                   display: 'flex', alignItems: 'center', justifyContent: 'center',
+214:                   fontSize: '11px', flexShrink: 0, fontWeight: 700,
+215:                   backgroundColor: tx.type === 'income' ? '#f0fdf4' : '#fef2f2',
+216:                   color: tx.type === 'income' ? '#16a34a' : '#dc2626',
+217:                 }}>
+218:                   {tx.type === 'income' ? 'IN' : 'OUT'}
+219:                 </div>
+220:                 <div style={{ flex: 1, minWidth: 0 }}>
+221:                   <p style={{ fontSize: '13px', fontWeight: 500, color: '#0a0a0a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+222:                     {tx.description || 'Sin descripción'}
+223:                   </p>
+224:                   <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '2px 0 0' }}>{formatDate(tx.date)}</p>
+225:                 </div>
+226:                 <p style={{
+227:                   fontSize: '13px', fontWeight: 600, flexShrink: 0, margin: 0,
+228:                   color: tx.type === 'income' ? '#16a34a' : '#dc2626',
+229:                 }}>
+230:                   {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
+231:                 </p>
+232:                 <button
+233:                   onClick={() => deleteTransaction(tx.id)}
+234:                   style={{
+235:                     padding: '4px', borderRadius: '6px', background: 'none', border: 'none',
+236:                     cursor: 'pointer', color: '#d4d4d4', display: 'flex',
+237:                     transition: 'color 0.15s',
+238:                     opacity: 0,
+239:                   }}
+240:                   onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.opacity = '1' }}
+241:                   onMouseLeave={(e) => { e.currentTarget.style.color = '#d4d4d4'; e.currentTarget.style.opacity = '0' }}
+242:                   title="Eliminar"
+243:                   className="group-hover:opacity-100"
+244:                 >
+245:                   <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+246:                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+247:                   </svg>
+248:                 </button>
+249:               </div>
+250:             ))}
+251:             
+252:             {total > (pageSize || 10) && (
+253:               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid #f5f5f5' }}>
+254:                 <span style={{ fontSize: '12px', color: '#737373' }}>
+255:                   Página {page} de {Math.ceil(total / (pageSize || 10))}
+256:                 </span>
+257:                 <div style={{ display: 'flex', gap: '8px' }}>
+258:                   <button 
+259:                     disabled={page === 1}
+260:                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+261:                     style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', border: '1px solid #e5e5e5', background: '#fff', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}
+262:                   >Anterior</button>
+263:                   <button 
+264:                     disabled={page >= Math.ceil(total / (pageSize || 10))}
+265:                     onClick={() => setCurrentPage(p => p + 1)}
+266:                     style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', border: '1px solid #e5e5e5', background: '#fff', cursor: page >= Math.ceil(total / (pageSize || 10)) ? 'not-allowed' : 'pointer', opacity: page >= Math.ceil(total / (pageSize || 10)) ? 0.5 : 1 }}
+267:                   >Siguiente</button>
+268:                 </div>
+269:               </div>
+270:             )}
+271:           </div>
+272:         )}
+273:       </div>
+274: 
+275:       <LoansSection ventureId={venture.id} />
+276: 
+277:       {/* Modals */}
+278:       {showTxForm && (
+279:         <TransactionForm
+280:           ventureId={venture.id}
+281:           onSubmit={createTransaction}
+282:           onClose={() => setShowTxForm(false)}
+283:         />
+284:       )}
+285:       {showEditForm && (
+286:         <VentureForm
+287:           venture={venture}
+288:           onSubmit={handleEditVenture}
+289:           onClose={() => setShowEditForm(false)}
+290:         />
+291:       )}
+292:     </div>
+293:   )
+294: }
 ````
 
-## File: frontend/src/features/ventures/pages/VenturesPage.tsx
+## File: frontend/src/features/ventures/components/VenturesList.view.tsx
 ````typescript
-1: // pages/VenturesPage.tsx — shell de la feature ventures
-2: import { VenturesList } from '@/features/ventures/components/VenturesList'
-3: 
-4: export default function VenturesPage() {
-5:   return <VenturesList />
-6: }
+  1: // features/ventures/components/VenturesList.tsx — Lista de ventures monochrome
+  2: import { useState } from 'react'
+  3: import { useVentures } from '../hooks/useVentures'
+  4: import { VentureCard } from './VentureCard'
+  5: import { VentureForm } from './VentureForm'
+  6: import type { CreateVentureInput } from '../types'
+  7: 
+  8: export function VenturesList() {
+  9:   const { ventures, loading, error, createVenture } = useVentures()
+ 10:   const [showForm, setShowForm] = useState(false)
+ 11:   const [filter, setFilter] = useState<string>('all')
+ 12: 
+ 13:   const filtered = filter === 'all'
+ 14:     ? ventures
+ 15:     : ventures.filter((v) => v.status === filter)
+ 16: 
+ 17:   const handleCreate = async (input: CreateVentureInput) => {
+ 18:     await createVenture(input)
+ 19:   }
+ 20: 
+ 21:   const filters = [
+ 22:     { key: 'all', label: 'Todos' },
+ 23:     { key: 'active', label: 'Activos' },
+ 24:     { key: 'paused', label: 'Pausados' },
+ 25:     { key: 'idea', label: 'Ideas' },
+ 26:     { key: 'closed', label: 'Cerrados' },
+ 27:   ]
+ 28: 
+ 29:   if (loading) {
+ 30:     return (
+ 31:       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+ 32:         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+ 33:           <div>
+ 34:             <div className="skeleton" style={{ height: '28px', width: '128px', marginBottom: '4px' }} />
+ 35:             <div className="skeleton" style={{ height: '16px', width: '200px' }} />
+ 36:           </div>
+ 37:           <div className="skeleton" style={{ height: '40px', width: '144px', borderRadius: '10px' }} />
+ 38:         </div>
+ 39:         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+ 40:           {[...Array(6)].map((_, i) => (
+ 41:             <div key={i} className="skeleton" style={{ height: '180px', borderRadius: '14px' }} />
+ 42:           ))}
+ 43:         </div>
+ 44:       </div>
+ 45:     )
+ 46:   }
+ 47: 
+ 48:   return (
+ 49:     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+ 50:       {/* Header */}
+ 51:       <div className="animate-fade-in" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
+ 52:         <div>
+ 53:           <h1 style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>Ventures</h1>
+ 54:           <p style={{ fontSize: '14px', color: '#737373', margin: '2px 0 0' }}>
+ 55:             {ventures.length} proyecto{ventures.length !== 1 ? 's' : ''} registrado{ventures.length !== 1 ? 's' : ''}
+ 56:           </p>
+ 57:         </div>
+ 58:         <button
+ 59:           onClick={() => setShowForm(true)}
+ 60:           style={{
+ 61:             display: 'inline-flex',
+ 62:             alignItems: 'center',
+ 63:             gap: '8px',
+ 64:             padding: '10px 16px',
+ 65:             borderRadius: '10px',
+ 66:             backgroundColor: '#0a0a0a',
+ 67:             color: '#fafafa',
+ 68:             fontSize: '14px',
+ 69:             fontWeight: 500,
+ 70:             border: 'none',
+ 71:             cursor: 'pointer',
+ 72:             transition: 'all 0.15s',
+ 73:           }}
+ 74:           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#262626' }}
+ 75:           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0a0a0a' }}
+ 76:           onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.98)' }}
+ 77:           onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
+ 78:         >
+ 79:           <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+ 80:             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+ 81:           </svg>
+ 82:           Nuevo venture
+ 83:         </button>
+ 84:       </div>
+ 85: 
+ 86:       {/* Filters */}
+ 87:       <div className="animate-fade-in" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', animationDelay: '50ms' }}>
+ 88:         {filters.map((f) => (
+ 89:           <button
+ 90:             key={f.key}
+ 91:             onClick={() => setFilter(f.key)}
+ 92:             style={{
+ 93:               padding: '6px 14px',
+ 94:               borderRadius: '8px',
+ 95:               fontSize: '13px',
+ 96:               fontWeight: 500,
+ 97:               border: filter === f.key ? 'none' : '1px solid #e5e5e5',
+ 98:               backgroundColor: filter === f.key ? '#0a0a0a' : '#fff',
+ 99:               color: filter === f.key ? '#fafafa' : '#525252',
+100:               cursor: 'pointer',
+101:               transition: 'all 0.15s',
+102:             }}
+103:           >
+104:             {f.label}
+105:           </button>
+106:         ))}
+107:       </div>
+108: 
+109:       {/* Error */}
+110:       {error && (
+111:         <div className="animate-fade-in" style={{
+112:           padding: '14px',
+113:           borderRadius: '10px',
+114:           backgroundColor: '#fef2f2',
+115:           color: '#dc2626',
+116:           fontSize: '13px',
+117:           border: '1px solid #fecaca',
+118:         }}>
+119:           {error}
+120:         </div>
+121:       )}
+122: 
+123:       {/* Grid */}
+124:       {filtered.length === 0 ? (
+125:         <div className="animate-fade-in" style={{ textAlign: 'center', padding: '80px 0' }}>
+126:           <div style={{
+127:             width: '64px',
+128:             height: '64px',
+129:             borderRadius: '14px',
+130:             backgroundColor: '#f5f5f5',
+131:             display: 'flex',
+132:             alignItems: 'center',
+133:             justifyContent: 'center',
+134:             margin: '0 auto 16px',
+135:           }}>
+136:             <svg style={{ width: '28px', height: '28px', color: '#a3a3a3' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+137:               <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
+138:             </svg>
+139:           </div>
+140:           <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>No hay ventures {filter !== 'all' ? 'con este filtro' : 'aún'}</p>
+141:           {filter === 'all' && (
+142:             <button
+143:               onClick={() => setShowForm(true)}
+144:               style={{
+145:                 marginTop: '12px',
+146:                 fontSize: '14px',
+147:                 color: '#171717',
+148:                 fontWeight: 500,
+149:                 background: 'none',
+150:                 border: 'none',
+151:                 cursor: 'pointer',
+152:                 textDecoration: 'underline',
+153:                 textUnderlineOffset: '4px',
+154:                 padding: 0,
+155:               }}
+156:             >
+157:               Crear tu primer venture
+158:             </button>
+159:           )}
+160:         </div>
+161:       ) : (
+162:         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+163:           {filtered.map((v, i) => (
+164:             <VentureCard key={v.id} venture={v} delay={i * 50} />
+165:           ))}
+166:         </div>
+167:       )}
+168: 
+169:       {/* Create modal */}
+170:       {showForm && (
+171:         <VentureForm
+172:           onSubmit={handleCreate}
+173:           onClose={() => setShowForm(false)}
+174:         />
+175:       )}
+176:     </div>
+177:   )
+178: }
+````
+
+## File: frontend/src/features/ventures/hooks/useVentureDetail.ts
+````typescript
+ 1: import { useState, useEffect, useCallback, useMemo } from 'react'
+ 2: import { useNavigate } from 'react-router-dom'
+ 3: import { supabase } from '@/shared/lib/supabase'
+ 4: import { useAuthStore } from '@/features/auth/store'
+ 5: import { calculateROI, breakEven, netProfit, ventureHealth, calculateHealth } from '@/shared/lib/metrics'
+ 6: import { VENTURE_MODE_METRICS } from '@/shared/lib/constants'
+ 7: import type { Venture, CreateVentureInput } from '../types'
+ 8: 
+ 9: export function useVentureDetail(id: string | undefined) {
+10:   const navigate = useNavigate()
+11:   const [venture, setVenture] = useState<Venture | null>(null)
+12:   const [loading, setLoading] = useState(true)
+13:   const session = useAuthStore((s) => s.session)
+14: 
+15:   const fetchVenture = useCallback(async () => {
+16:     if (!id || !session?.access_token) return
+17:     setLoading(true)
+18:     const headers = { Authorization: `Bearer ${session.access_token}` }
+19:     const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
+20:       method: 'GET',
+21:       headers,
+22:     })
+23:     if (error || !data) { navigate('/ventures'); return }
+24:     setVenture(data.data)
+25:     setLoading(false)
+26:   }, [id, session?.access_token, navigate])
+27: 
+28:   useEffect(() => {
+29:     fetchVenture()
+30:   }, [fetchVenture])
+31: 
+32:   const handleEditVenture = async (input: CreateVentureInput) => {
+33:     if (!id) return
+34:     const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
+35:     const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
+36:       method: 'PUT',
+37:       body: input,
+38:       headers,
+39:     })
+40:     if (error) throw new Error(error.message || 'Error updating venture')
+41:     setVenture(data.data)
+42:   }
+43: 
+44:   const handleDeleteVenture = async () => {
+45:     if (!id || !confirm('¿Eliminar este venture y todas sus transacciones?')) return
+46:     const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
+47:     await supabase.functions.invoke(`ventures/${id}`, {
+48:       method: 'DELETE',
+49:       headers,
+50:     })
+51:     navigate('/ventures')
+52:   }
+53: 
+54:   const metrics = useMemo(() => {
+55:     if (!venture) return null
+56: 
+57:     const isPersonal = venture.mode === 'personal'
+58:     const metricValue = isPersonal 
+59:       ? calculateHealth(venture.invested, venture.returned)
+60:       : calculateROI(venture.invested, venture.returned)
+61:       
+62:     const health = isPersonal
+63:       ? (metricValue > 20 ? 'positive' : (metricValue > 0 ? 'neutral' : 'negative'))
+64:       : ventureHealth(metricValue)
+65:       
+66:     const net = netProfit(venture.invested, venture.returned)
+67:     const remaining = breakEven(venture.invested, venture.returned)
+68: 
+69:     const healthColor = health === 'positive' ? '#16a34a' : health === 'negative' ? '#dc2626' : '#525252'
+70:     const netColor = isPersonal 
+71:       ? (venture.returned > venture.invested ? '#dc2626' : '#16a34a')
+72:       : (net >= 0 ? '#16a34a' : '#dc2626')
+73: 
+74:     const labels = VENTURE_MODE_METRICS[venture.mode || 'business']
+75: 
+76:     return {
+77:       isPersonal,
+78:       metricValue,
+79:       health,
+80:       net,
+81:       remaining,
+82:       healthColor,
+83:       netColor,
+84:       labels
+85:     }
+86:   }, [venture])
+87: 
+88:   return {
+89:     venture,
+90:     loading,
+91:     metrics,
+92:     handleEditVenture,
+93:     handleDeleteVenture
+94:   }
+95: }
 ````
 
 ## File: frontend/src/shared/components/SlidePanel.tsx
@@ -1978,6 +4128,44 @@ package.json
 26: }
 ````
 
+## File: frontend/src/shared/lib/metrics.ts
+````typescript
+ 1: // frontend/src/shared/lib/metrics.ts
+ 2: // Cálculos de negocio centralizados — NUNCA persistir ROI en DB
+ 3: import type { VentureHealth } from '@backend/_shared/types'
+ 4: 
+ 5: /** ROI en porcentaje. Nunca persistir en DB. */
+ 6: export const calculateROI = (invested: number, returned: number): number => {
+ 7:   if (invested === 0) return 0
+ 8:   if (returned === 0 && invested > 0) return -100
+ 9:   return Number(((returned - invested) / invested * 100).toFixed(2))
+10: }
+11: 
+12: /** Cuánto falta para recuperar la inversión. */
+13: export const breakEven = (invested: number, returned: number): number => {
+14:   return Math.max(0, invested - returned)
+15: }
+16: 
+17: /** Estado de salud del venture basado en ROI. */
+18: export const ventureHealth = (roi: number): VentureHealth => {
+19:   if (roi > 10) return 'positive'
+20:   if (roi >= 0) return 'neutral'
+21:   return 'negative'
+22: }
+23: 
+24: /** Ganancia neta del venture. */
+25: export const netProfit = (invested: number, returned: number): number => {
+26:   return returned - invested
+27: }
+28: 
+29: /** Salud del presupuesto en porcentaje (0 = agotado, 100 = intacto). Solo para modo personal. */
+30: export const calculateHealth = (budget: number, spent: number): number => {
+31:   if (budget <= 0) return 0
+32:   const remaining = budget - spent
+33:   return Math.max(0, Number(((remaining / budget) * 100).toFixed(2)))
+34: }
+````
+
 ## File: frontend/src/shared/lib/supabase.ts
 ````typescript
  1: // apps/web/src/shared/lib/supabase.ts
@@ -2045,6 +4233,11 @@ package.json
  8:     <App />
  9:   </StrictMode>,
 10: )
+````
+
+## File: frontend/src/vite-env.d.ts
+````typescript
+1: /// <reference types="vite/client" />
 ````
 
 ## File: frontend/package.json
@@ -3669,472 +5862,14 @@ package.json
 124: }
 ````
 
-## File: frontend/src/features/dashboard/components/RedVentures.tsx
+## File: frontend/src/features/dashboard/pages/DashboardPage.tsx
 ````typescript
-  1: // features/dashboard/components/RedVentures.tsx — Monochrome premium
-  2: import { formatCurrency } from '@/shared/lib/formatters'
-  3: import { calculateROI, calculateHealth } from '@/features/ventures/utils'
-  4: import type { Venture } from '@backend/_shared/types'
-  5: 
-  6: interface RedVenturesProps {
-  7:   ventures: Venture[]
-  8: }
-  9: 
- 10: export function RedVentures({ ventures }: RedVenturesProps) {
- 11:   const red = ventures.filter((v) => {
- 12:     if (v.status === 'closed') return false
- 13:     
- 14:     if (v.mode === 'personal') {
- 15:       return v.returned > v.invested // Spent more than budget
- 16:     }
- 17:     
- 18:     // Business mode
- 19:     return v.invested > v.returned
- 20:   })
- 21: 
- 22:   if (red.length === 0) {
- 23:     return (
- 24:       <div
- 25:         className="animate-fade-in"
- 26:         style={{
- 27:           backgroundColor: '#fff',
- 28:           borderRadius: '14px',
- 29:           padding: '20px',
- 30:           border: '1px solid #e5e5e5',
- 31:           animationDelay: '300ms',
- 32:         }}
- 33:       >
- 34:         <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: '0 0 12px' }}>Atención Requerida</h3>
- 35:         <div style={{
- 36:           display: 'flex',
- 37:           alignItems: 'center',
- 38:           gap: '10px',
- 39:           padding: '14px',
- 40:           borderRadius: '10px',
- 41:           backgroundColor: '#f0fdf4',
- 42:           color: '#16a34a',
- 43:           fontSize: '13px',
- 44:           fontWeight: 500,
- 45:         }}>
- 46:           <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
- 47:             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
- 48:           </svg>
- 49:           ¡Todos tus proyectos y presupuestos están saludables!
- 50:         </div>
- 51:       </div>
- 52:     )
- 53:   }
- 54: 
- 55:   return (
- 56:     <div
- 57:       className="animate-fade-in"
- 58:       style={{
- 59:         backgroundColor: '#fff',
- 60:         borderRadius: '14px',
- 61:         padding: '20px',
- 62:         border: '1px solid #e5e5e5',
- 63:         animationDelay: '300ms',
- 64:       }}
- 65:     >
- 66:       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
- 67:         <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: 0 }}>Atención Requerida</h3>
- 68:         <span style={{
- 69:           padding: '1px 8px',
- 70:           borderRadius: '999px',
- 71:           backgroundColor: '#fef2f2',
- 72:           color: '#dc2626',
- 73:           fontSize: '11px',
- 74:           fontWeight: 500,
- 75:         }}>
- 76:           {red.length}
- 77:         </span>
- 78:       </div>
- 79:       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
- 80:         {red.map((v) => {
- 81:           const isPersonal = v.mode === 'personal'
- 82:           const metricValue = isPersonal 
- 83:             ? calculateHealth(v.invested, v.returned)
- 84:             : calculateROI(v.invested, v.returned)
- 85:             
- 86:           const loss = isPersonal 
- 87:             ? v.returned - v.invested // Overbudget amount
- 88:             : v.invested - v.returned // Unrecovered investment
- 89:             
- 90:           const lossLabel = isPersonal ? 'Excedente:' : 'Falta:'
- 91:           
- 92:           return (
- 93:             <div key={v.id} style={{
- 94:               display: 'flex',
- 95:               alignItems: 'center',
- 96:               justifyContent: 'space-between',
- 97:               padding: '10px 12px',
- 98:               borderRadius: '10px',
- 99:               backgroundColor: '#fafafa',
-100:               transition: 'background-color 0.15s',
-101:             }}
-102:               onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f5f5f5' }}
-103:               onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fafafa' }}
-104:             >
-105:               <div style={{ minWidth: 0 }}>
-106:                 <p style={{ fontSize: '13px', fontWeight: 500, color: '#171717', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.name}</p>
-107:                 <p style={{ fontSize: '12px', color: '#737373', margin: '2px 0 0' }}>
-108:                   {lossLabel} {formatCurrency(loss)}
-109:                 </p>
-110:               </div>
-111:               <span style={{ fontSize: '13px', fontWeight: 600, color: '#dc2626', flexShrink: 0 }}>
-112:                 {isPersonal ? 'Agotado' : `${metricValue.toFixed(1)}%`}
-113:               </span>
-114:             </div>
-115:           )
-116:         })}
-117:       </div>
-118:     </div>
-119:   )
-120: }
-````
-
-## File: frontend/src/features/dashboard/components/VentureROIChart.tsx
-````typescript
- 1: // features/dashboard/components/VentureROIChart.tsx
- 2: import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
- 3: import type { Venture } from '@backend/_shared/types'
- 4: import { calculateROI, ventureHealth } from '@/features/ventures/utils'
- 5: import { formatROI } from '@/shared/lib/formatters'
- 6: 
- 7: interface VentureROIChartProps {
- 8:   ventures: Venture[]
- 9: }
-10: 
-11: export function VentureROIChart({ ventures }: VentureROIChartProps) {
-12:   const activeBusinessVentures = ventures.filter(
-13:     (v) => (v.status === 'active' || v.status === 'paused') && v.mode !== 'personal'
-14:   )
-15:   
-16:   if (activeBusinessVentures.length === 0) {
-17:     return (
-18:       <div 
-19:         className="animate-fade-in"
-20:         style={{ 
-21:           backgroundColor: '#fff', 
-22:           border: '1px solid #e5e5e5', 
-23:           borderRadius: '14px', 
-24:           padding: '20px',
-25:           display: 'flex',
-26:           flexDirection: 'column',
-27:           alignItems: 'center',
-28:           justifyContent: 'center',
-29:           minHeight: '200px',
-30:           animationDelay: '250ms'
-31:         }}
-32:       >
-33:         <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>No hay negocios activos para medir el ROI</p>
-34:       </div>
-35:     )
-36:   }
-37: 
-38:   const data = activeBusinessVentures.map(v => {
-39:     const roi = calculateROI(v.invested, v.returned)
-40:     return {
-41:       name: v.name,
-42:       roi,
-43:       health: ventureHealth(roi)
-44:     }
-45:   }).sort((a, b) => b.roi - a.roi)
-46: 
-47:   const minHeight = Math.max((data.length * 44) + 80, 200)
-48: 
-49:   return (
-50:     <div
-51:       className="animate-fade-in"
-52:       style={{
-53:         backgroundColor: '#fff',
-54:         borderRadius: '14px',
-55:         padding: '20px',
-56:         border: '1px solid #e5e5e5',
-57:         animationDelay: '250ms',
-58:       }}
-59:     >
-60:       <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: '0 0 16px' }}>
-61:         ¿A cuál meterle más? — ranking por ROI
-62:       </h3>
-63:       <div style={{ height: `${minHeight}px` }}>
-64:         <ResponsiveContainer width="100%" height="100%">
-65:           <BarChart data={data} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
-66:             <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={true} vertical={false} />
-67:             <XAxis type="number" tick={{ fontSize: 12, fill: '#737373' }} axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} />
-68:             <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: '#171717', fontWeight: 500 }} axisLine={false} tickLine={false} width={100} />
-69:             <Tooltip
-70:               contentStyle={{
-71:                 backgroundColor: '#fff',
-72:                 border: '1px solid #e5e5e5',
-73:                 borderRadius: '10px',
-74:                 fontSize: '13px',
-75:                 boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
-76:               }}
-77:               formatter={(value: any) => [formatROI(Number(value)), 'ROI']}
-78:               cursor={{ fill: '#f5f5f5' }}
-79:             />
-80:             <Bar dataKey="roi" radius={[0, 4, 4, 0]}>
-81:               {data.map((entry, index) => {
-82:                 let color = '#a3a3a3' // neutral
-83:                 if (entry.health === 'positive') color = '#22c55e'
-84:                 if (entry.health === 'negative') color = '#ef4444'
-85:                 
-86:                 return <Cell key={`cell-${index}`} fill={color} />
-87:               })}
-88:             </Bar>
-89:           </BarChart>
-90:         </ResponsiveContainer>
-91:       </div>
-92:     </div>
-93:   )
-94: }
-````
-
-## File: frontend/src/features/dashboard/components/VentureStatusList.tsx
-````typescript
-  1: // features/dashboard/components/VentureStatusList.tsx
-  2: import type { Venture } from '@backend/_shared/types'
-  3: import { calculateROI, ventureHealth, calculateHealth } from '@/features/ventures/utils'
-  4: import { formatROI } from '@/shared/lib/formatters'
-  5: import { VENTURE_TYPE_LABELS } from '@/shared/lib/constants'
-  6: 
-  7: interface VentureStatusListProps {
-  8:   ventures: Venture[]
-  9: }
- 10: 
- 11: type ActionBadge = {
- 12:   label: string
- 13:   bg: string
- 14:   color: string
- 15:   border: string
- 16: }
- 17: 
- 18: function getActionBadge(roi: number, diffDays: number, status: string, isPersonal: boolean): ActionBadge {
- 19:   if (status === 'paused')
- 20:     return { label: 'Pausado', bg: '#f5f5f5', color: '#737373', border: '#e5e5e5' }
- 21:     
- 22:   if (isPersonal) {
- 23:     if (roi < 10) return { label: 'Crítico', bg: '#fef2f2', color: '#dc2626', border: '#fecaca' }
- 24:     if (roi < 30) return { label: 'Cuidado', bg: '#fefce8', color: '#a16207', border: '#fde68a' }
- 25:     return { label: 'Saludable', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' }
- 26:   } else {
- 27:     if (roi < -30 || (roi < 0 && diffDays > 120))
- 28:       return { label: 'Revisar', bg: '#fef2f2', color: '#dc2626', border: '#fecaca' }
- 29:     if (roi < 0)
- 30:       return { label: 'En rojo', bg: '#fef2f2', color: '#ef4444', border: '#fecaca' }
- 31:     if (roi >= 0 && roi < 15)
- 32:       return { label: 'Vigilar', bg: '#fefce8', color: '#a16207', border: '#fde68a' }
- 33:     if (roi >= 15 && roi < 40)
- 34:       return { label: 'Mantener', bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' }
- 35:     return { label: 'Escalar', bg: '#f0fdf4', color: '#15803d', border: '#86efac' }
- 36:   }
- 37: }
- 38: 
- 39: function getDotColor(health: string): string {
- 40:   if (health === 'positive') return '#22c55e'
- 41:   if (health === 'negative') return '#ef4444'
- 42:   return '#eab308'
- 43: }
- 44: 
- 45: function getDaysActive(startDate: string): number {
- 46:   const start = new Date(startDate)
- 47:   const now = new Date()
- 48:   return Math.ceil(Math.abs(now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))
- 49: }
- 50: 
- 51: function formatTimeSince(days: number): string {
- 52:   if (days < 30) return `${days} días`
- 53:   const months = Math.floor(days / 30)
- 54:   return `${months} ${months === 1 ? 'mes' : 'meses'}`
- 55: }
- 56: 
- 57: export function VentureStatusList({ ventures }: VentureStatusListProps) {
- 58:   const relevantVentures = ventures.filter(
- 59:     (v) => v.status === 'active' || v.status === 'paused'
- 60:   )
- 61: 
- 62:   const redCount = relevantVentures.filter((v) => {
- 63:     const isPersonal = v.mode === 'personal'
- 64:     if (isPersonal) {
- 65:       const health = calculateHealth(v.invested, v.returned)
- 66:       return health < 20 && v.status === 'active'
- 67:     } else {
- 68:       const roi = calculateROI(v.invested, v.returned)
- 69:       return roi < 0 && v.status === 'active'
- 70:     }
- 71:   }).length
- 72: 
- 73:   const ventureData = relevantVentures
- 74:     .map((v) => {
- 75:       const isPersonal = v.mode === 'personal'
- 76:       const metricValue = isPersonal 
- 77:         ? calculateHealth(v.invested, v.returned)
- 78:         : calculateROI(v.invested, v.returned)
- 79:         
- 80:       const health = isPersonal
- 81:         ? (metricValue > 20 ? 'positive' : (metricValue > 0 ? 'neutral' : 'negative'))
- 82:         : ventureHealth(metricValue)
- 83:         
- 84:       const days = getDaysActive(v.start_date)
- 85:       const badge = getActionBadge(metricValue, days, v.status, isPersonal)
- 86:       return { venture: v, isPersonal, metricValue, health, days, badge }
- 87:     })
- 88:     .sort((a, b) => {
- 89:       // Sort personal by ascending health, business by ascending ROI to show worst first?
- 90:       // Wait, original sorted by descending ROI: b.roi - a.roi. 
- 91:       // If we want best first:
- 92:       return b.metricValue - a.metricValue
- 93:     })
- 94: 
- 95:   if (ventureData.length === 0) {
- 96:     return (
- 97:       <div
- 98:         className="animate-fade-in"
- 99:         style={{
-100:           backgroundColor: '#fff',
-101:           border: '1px solid #e5e5e5',
-102:           borderRadius: '14px',
-103:           padding: '20px',
-104:           display: 'flex',
-105:           alignItems: 'center',
-106:           justifyContent: 'center',
-107:           minHeight: '200px',
-108:           animationDelay: '300ms',
-109:         }}
-110:       >
-111:         <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>
-112:           Sin ventures activos
-113:         </p>
-114:       </div>
-115:     )
-116:   }
-117: 
-118:   return (
-119:     <div
-120:       className="animate-fade-in"
-121:       style={{
-122:         backgroundColor: '#fff',
-123:         borderRadius: '14px',
-124:         padding: '20px',
-125:         border: '1px solid #e5e5e5',
-126:         animationDelay: '300ms',
-127:         display: 'flex',
-128:         flexDirection: 'column',
-129:       }}
-130:     >
-131:       {/* Header */}
-132:       <div
-133:         style={{
-134:           display: 'flex',
-135:           alignItems: 'center',
-136:           justifyContent: 'space-between',
-137:           marginBottom: '16px',
-138:         }}
-139:       >
-140:         <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: 0 }}>
-141:           Estado de ventures
-142:         </h3>
-143:         {redCount > 0 && (
-144:           <span
-145:             style={{
-146:               fontSize: '11px',
-147:               fontWeight: 600,
-148:               padding: '3px 12px',
-149:               borderRadius: '999px',
-150:               backgroundColor: '#fef2f2',
-151:               color: '#dc2626',
-152:               border: '1px solid #fecaca',
-153:             }}
-154:           >
-155:             {redCount} en rojo
-156:           </span>
-157:         )}
-158:       </div>
-159: 
-160:       {/* List */}
-161:       <div style={{ display: 'flex', flexDirection: 'column' }}>
-162:         {ventureData.map(({ venture, isPersonal, metricValue, health, days, badge }, idx) => (
-163:           <div
-164:             key={venture.id}
-165:             style={{
-166:               display: 'flex',
-167:               alignItems: 'center',
-168:               gap: '12px',
-169:               padding: '12px 0',
-170:               borderBottom: idx < ventureData.length - 1 ? '1px solid #f5f5f5' : 'none',
-171:             }}
-172:           >
-173:             {/* Dot */}
-174:             <span
-175:               style={{
-176:                 width: '10px',
-177:                 height: '10px',
-178:                 borderRadius: '50%',
-179:                 backgroundColor: getDotColor(health),
-180:                 flexShrink: 0,
-181:               }}
-182:             />
-183: 
-184:             {/* Info */}
-185:             <div style={{ flex: 1, minWidth: 0 }}>
-186:               <p
-187:                 style={{
-188:                   fontSize: '15px',
-189:                   fontWeight: 700,
-190:                   color: '#171717',
-191:                   margin: 0,
-192:                   whiteSpace: 'nowrap',
-193:                   overflow: 'hidden',
-194:                   textOverflow: 'ellipsis',
-195:                 }}
-196:               >
-197:                 {venture.name}
-198:               </p>
-199:               <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '1px 0 0' }}>
-200:                 {VENTURE_TYPE_LABELS[venture.type] || venture.type} · {formatTimeSince(days)}
-201:               </p>
-202:             </div>
-203: 
-204:             {/* ROI / Health */}
-205:             <span
-206:               style={{
-207:                 fontSize: '14px',
-208:                 fontWeight: 700,
-209:                 color:
-210:                   health === 'positive'
-211:                     ? '#16a34a'
-212:                     : health === 'negative'
-213:                       ? '#dc2626'
-214:                       : '#a16207',
-215:                 whiteSpace: 'nowrap',
-216:               }}
-217:             >
-218:               {isPersonal ? `${metricValue}%` : formatROI(metricValue)}
-219:             </span>
-220: 
-221:             {/* Action Badge */}
-222:             <span
-223:               style={{
-224:                 fontSize: '11px',
-225:                 fontWeight: 600,
-226:                 padding: '3px 12px',
-227:                 borderRadius: '999px',
-228:                 backgroundColor: badge.bg,
-229:                 color: badge.color,
-230:                 border: `1px solid ${badge.border}`,
-231:                 whiteSpace: 'nowrap',
-232:                 flexShrink: 0,
-233:               }}
-234:             >
-235:               {badge.label}
-236:             </span>
-237:           </div>
-238:         ))}
-239:       </div>
-240:     </div>
-241:   )
-242: }
+1: // pages/DashboardPage.tsx — shell de la feature dashboard
+2: import { DashboardView } from '@/features/dashboard/components/Dashboard.view'
+3: 
+4: export default function DashboardPage() {
+5:   return <DashboardView />
+6: }
 ````
 
 ## File: frontend/src/features/loans/components/LoanForm.tsx
@@ -4304,758 +6039,44 @@ package.json
 163: }
 ````
 
-## File: frontend/src/features/loans/components/LoansSection.tsx
+## File: frontend/src/features/settings/pages/SettingsKeywordsPage.tsx
 ````typescript
-  1: import { useState, useEffect } from 'react'
-  2: import { useLoans } from '../hooks/useLoans'
-  3: import { LoanForm } from './LoanForm'
-  4: import { formatCurrency, formatDate } from '@/shared/lib/formatters'
-  5: 
-  6: interface LoansSectionProps {
-  7:   ventureId: string
-  8: }
-  9: 
- 10: export function LoansSection({ ventureId }: LoansSectionProps) {
- 11:   const { loans, loading, fetchLoans, createLoan, deleteLoan } = useLoans(ventureId)
- 12:   const [showForm, setShowForm] = useState(false)
- 13:   const [expandedLoanId, setExpandedLoanId] = useState<string | null>(null)
- 14: 
- 15:   useEffect(() => {
- 16:     fetchLoans()
- 17:   }, [fetchLoans])
- 18: 
- 19:   const handleCreate = async (input: any) => {
- 20:     await createLoan(input)
- 21:   }
- 22: 
- 23:   const toggleExpand = (id: string) => {
- 24:     setExpandedLoanId((prev) => (prev === id ? null : id))
- 25:   }
- 26: 
- 27:   return (
- 28:     <div className="animate-fade-in" style={{
- 29:       backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5',
- 30:       overflow: 'hidden', animationDelay: '150ms', marginTop: '24px'
- 31:     }}>
- 32:       <div style={{
- 33:         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
- 34:         padding: '16px 20px', borderBottom: '1px solid #f5f5f5',
- 35:       }}>
- 36:         <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>
- 37:           Préstamos & Financiación
- 38:           <span style={{ color: '#a3a3a3', fontWeight: 400, marginLeft: '6px' }}>({loans.length})</span>
- 39:         </h2>
- 40:         <button
- 41:           onClick={() => setShowForm(true)}
- 42:           style={{
- 43:             display: 'inline-flex', alignItems: 'center', gap: '6px',
- 44:             padding: '6px 12px', borderRadius: '8px',
- 45:             backgroundColor: '#f5f5f5', color: '#525252', fontSize: '13px', fontWeight: 500,
- 46:             border: 'none', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
- 47:           }}
- 48:           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e5e5e5'; e.currentTarget.style.color = '#0a0a0a' }}
- 49:           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f5f5f5'; e.currentTarget.style.color = '#525252' }}
- 50:         >
- 51:           <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
- 52:             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
- 53:           </svg>
- 54:           Nuevo Préstamo
- 55:         </button>
- 56:       </div>
- 57: 
- 58:       {loading ? (
- 59:         <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
- 60:           {[...Array(2)].map((_, i) => <div key={i} className="skeleton" style={{ height: '64px', borderRadius: '10px' }} />)}
- 61:         </div>
- 62:       ) : loans.length === 0 ? (
- 63:         <div style={{ textAlign: 'center', padding: '56px 20px' }}>
- 64:           <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>No hay préstamos registrados</p>
- 65:         </div>
- 66:       ) : (
- 67:         <div style={{ display: 'grid', gap: '12px', padding: '16px' }}>
- 68:           {loans.map((loan) => {
- 69:             const hasPayments = loan.loan_payments && loan.loan_payments.length > 0;
- 70:             const nextPayment = hasPayments ? loan.loan_payments?.find(p => p.status === 'pending') : null;
- 71:             const isExpanded = expandedLoanId === loan.id;
- 72: 
- 73:             return (
- 74:               <div
- 75:                 key={loan.id}
- 76:                 style={{
- 77:                   border: '1px solid #f0f0f0', borderRadius: '12px',
- 78:                   backgroundColor: '#fafafa', overflow: 'hidden',
- 79:                   transition: 'box-shadow 0.2s',
- 80:                 }}
- 81:               >
- 82:                 {/* Cabecera del préstamo */}
- 83:                 <div 
- 84:                   onClick={() => toggleExpand(loan.id)}
- 85:                   style={{
- 86:                     padding: '16px 20px', display: 'grid', gridTemplateColumns: 'minmax(200px, 1.5fr) 1fr 1fr auto', gap: '24px',
- 87:                     alignItems: 'center', cursor: 'pointer', transition: 'background-color 0.15s'
- 88:                   }}
- 89:                   onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fdfdfd' }}
- 90:                   onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
- 91:                 >
- 92:                   <div style={{ display: 'flex', flexDirection: 'column' }}>
- 93:                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
- 94:                       <p style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
- 95:                         {loan.name}
- 96:                       </p>
- 97:                       <span style={{ 
- 98:                         fontSize: '10px', padding: '2px 6px', borderRadius: '4px', fontWeight: 600, letterSpacing: '0.04em',
- 99:                         backgroundColor: loan.status === 'active' ? '#e0e7ff' : loan.status === 'paid' ? '#dcfce7' : '#fee2e2',
-100:                         color: loan.status === 'active' ? '#4338ca' : loan.status === 'paid' ? '#15803d' : '#b91c1c'
-101:                       }}>
-102:                         {loan.status === 'active' ? 'ACTIVO' : loan.status === 'paid' ? 'PAGADO' : 'MORA'}
-103:                       </span>
-104:                     </div>
-105:                     <p style={{ fontSize: '12px', color: '#737373', margin: 0 }}>
-106:                       Tasa: {loan.interest_rate}% <span style={{ margin: '0 4px', color: '#e5e5e5' }}>|</span> Inició: {formatDate(loan.start_date)}
-107:                     </p>
-108:                   </div>
-109:                   
-110:                   <div style={{ display: 'flex', flexDirection: 'column' }}>
-111:                     <span style={{ fontSize: '11px', color: '#a3a3a3', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Monto Restante</span>
-112:                     <span style={{ fontSize: '14px', fontWeight: 600, color: '#171717' }}>{formatCurrency(loan.principal)}</span>
-113:                   </div>
-114:                   
-115:                   <div>
-116:                     {nextPayment ? (
-117:                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-118:                         <span style={{ fontSize: '11px', color: '#c2410c', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '4px' }}>
-119:                           <span style={{ width: '6px', height: '6px', backgroundColor: '#f97316', borderRadius: '50%' }} />
-120:                           Próx ({formatDate(nextPayment.due_date)})
-121:                         </span>
-122:                         <span style={{ fontSize: '14px', fontWeight: 600, color: '#b45309' }}>{formatCurrency(nextPayment.amount)}</span>
-123:                       </div>
-124:                     ) : hasPayments ? (
-125:                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-126:                         <span style={{ fontSize: '11px', color: '#16a34a', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.02em', display: 'flex', alignItems: 'center', gap: '4px' }}>
-127:                           <span style={{ width: '6px', height: '6px', backgroundColor: '#22c55e', borderRadius: '50%' }} />
-128:                           Al día
-129:                         </span>
-130:                         <span style={{ fontSize: '14px', fontWeight: 500, color: '#15803d' }}>Completado</span>
-131:                       </div>
-132:                     ) : (
-133:                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-134:                         <span style={{ fontSize: '11px', color: '#737373', marginBottom: '2px', textTransform: 'uppercase', letterSpacing: '0.02em' }}>Estado</span>
-135:                         <span style={{ fontSize: '14px', fontWeight: 500, color: '#525252' }}>Sin cuotas</span>
-136:                       </div>
-137:                     )}
-138:                   </div>
-139: 
-140:                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-141:                     <button
-142:                       onClick={(e) => { e.stopPropagation(); deleteLoan(loan.id); }}
-143:                       style={{
-144:                         padding: '6px', borderRadius: '6px', background: 'transparent', border: 'none',
-145:                         cursor: 'pointer', color: '#d4d4d4', transition: 'all 0.15s', display: 'flex', alignItems: 'center',
-146:                       }}
-147:                       onMouseEnter={(e) => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.backgroundColor = '#fef2f2' }}
-148:                       onMouseLeave={(e) => { e.currentTarget.style.color = '#d4d4d4'; e.currentTarget.style.backgroundColor = 'transparent' }}
-149:                       title="Eliminar"
-150:                     >
-151:                       <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-152:                         <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-153:                       </svg>
-154:                     </button>
-155:                     <div style={{ color: '#a3a3a3', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }}>
-156:                       <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-157:                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-158:                       </svg>
-159:                     </div>
-160:                   </div>
-161:                 </div>
-162: 
-163:                 {/* Detalles Expandidos (Cronograma) */}
-164:                 {isExpanded && (
-165:                   <div style={{ borderTop: '1px solid #f0f0f0', backgroundColor: '#fff', padding: '16px' }}>
-166:                     <h4 style={{ fontSize: '13px', fontWeight: 600, color: '#171717', margin: '0 0 12px' }}>
-167:                       Historial y Próximas Cuotas
-168:                     </h4>
-169:                     {hasPayments ? (
-170:                       <div style={{ display: 'grid', gap: '8px' }}>
-171:                         {loan.loan_payments!.map((payment) => (
-172:                           <div key={payment.id} style={{
-173:                             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-174:                             padding: '10px 12px', border: '1px solid #f5f5f5', borderRadius: '8px',
-175:                             backgroundColor: payment.status === 'paid' ? '#fcfcfc' : payment.status === 'pending' ? '#fff' : '#fef2f2',
-176:                             opacity: payment.status === 'paid' ? 0.7 : 1
-177:                           }}>
-178:                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-179:                               <div style={{
-180:                                 width: '8px', height: '8px', borderRadius: '50%',
-181:                                 backgroundColor: payment.status === 'paid' ? '#16a34a' : payment.status === 'pending' ? '#f97316' : '#dc2626'
-182:                               }} />
-183:                               <div>
-184:                                 <p style={{ fontSize: '12px', color: '#525252', margin: 0, fontWeight: 500 }}>
-185:                                   {formatDate(payment.due_date)} {payment.payment_date && `(Pagado: ${formatDate(payment.payment_date)})`}
-186:                                 </p>
-187:                                 <p style={{ fontSize: '11px', color: '#a3a3a3', margin: '2px 0 0' }}>
-188:                                   Monto total: {formatCurrency(payment.amount)}
-189:                                 </p>
-190:                               </div>
-191:                             </div>
-192:                             <div style={{ textAlign: 'right' }}>
-193:                               <p style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: 0 }}>
-194:                                 {formatCurrency(payment.amount)}
-195:                               </p>
-196:                               <p style={{ fontSize: '11px', color: payment.status === 'paid' ? '#16a34a' : payment.status === 'pending' ? '#f97316' : '#dc2626', margin: '2px 0 0', fontWeight: 500 }}>
-197:                                 {payment.status === 'paid' ? 'Pagado' : payment.status === 'pending' ? 'Pendiente' : 'Atrasado'}
-198:                               </p>
-199:                             </div>
-200:                           </div>
-201:                         ))}
-202:                       </div>
-203:                     ) : (
-204:                       <p style={{ fontSize: '13px', color: '#737373', margin: 0, fontStyle: 'italic' }}>
-205:                         No hay cuotas programadas para este préstamo.
-206:                       </p>
-207:                     )}
-208:                   </div>
-209:                 )}
-210:               </div>
-211:             )
-212:           })}
-213:         </div>
-214:       )}
-215: 
-216:       {showForm && (
-217:         <LoanForm 
-218:           ventureId={ventureId} 
-219:           onSubmit={handleCreate} 
-220:           onClose={() => setShowForm(false)} 
-221:         />
-222:       )}
-223:     </div>
-224:   )
-225: }
+1: // pages/SettingsKeywordsPage.tsx — shell
+2: import { KeywordsManager } from '@/features/settings/components/KeywordsManager.view'
+3: 
+4: export default function SettingsKeywordsPage() {
+5:   return <KeywordsManager />
+6: }
 ````
 
-## File: frontend/src/features/settings/components/KeywordsManager.tsx
+## File: frontend/src/features/settings/pages/SettingsWhatsAppPage.tsx
 ````typescript
-  1: // features/settings/components/KeywordsManager.tsx — Gestión monocromática
-  2: import { useState, useEffect } from 'react'
-  3: import { supabase } from '@/shared/lib/supabase'
-  4: 
-  5: interface Keyword {
-  6:   id: string
-  7:   keyword: string
-  8:   type: 'income' | 'expense'
-  9: }
- 10: 
- 11: const inputStyle: React.CSSProperties = {
- 12:   padding: '10px 14px',
- 13:   borderRadius: '8px',
- 14:   backgroundColor: '#fafafa',
- 15:   border: '1px solid #e5e5e5',
- 16:   color: '#171717',
- 17:   fontSize: '14px',
- 18:   outline: 'none',
- 19:   fontFamily: 'inherit',
- 20:   transition: 'border-color 0.15s',
- 21: }
- 22: 
- 23: export function KeywordsManager() {
- 24:   const [keywords, setKeywords] = useState<Keyword[]>([])
- 25:   const [loading, setLoading] = useState(true)
- 26:   const [newKeyword, setNewKeyword] = useState('')
- 27:   const [newType, setNewType] = useState<'income' | 'expense'>('expense')
- 28:   const [saving, setSaving] = useState(false)
- 29: 
- 30:   useEffect(() => {
- 31:     const fetchKeywords = async () => {
- 32:       const { data, error } = await supabase.functions.invoke('user-settings/keywords', {
- 33:         method: 'GET',
- 34:       })
- 35:       if (!error && data) {
- 36:         setKeywords(data.data || [])
- 37:       }
- 38:       setLoading(false)
- 39:     }
- 40:     fetchKeywords()
- 41:   }, [])
- 42: 
- 43:   const addKeyword = async () => {
- 44:     if (!newKeyword.trim()) return
- 45:     setSaving(true)
- 46:     const { data, error } = await supabase.functions.invoke('user-settings/keywords', {
- 47:       method: 'POST',
- 48:       body: { keyword: newKeyword.trim().toLowerCase(), type: newType },
- 49:     })
- 50:     if (!error && data) {
- 51:       setKeywords((prev) => [...prev, data.data])
- 52:       setNewKeyword('')
- 53:     }
- 54:     setSaving(false)
- 55:   }
- 56: 
- 57:   const removeKeyword = async (id: string) => {
- 58:     await supabase.functions.invoke(`user-settings/keywords/${id}`, {
- 59:       method: 'DELETE',
- 60:     })
- 61:     setKeywords((prev) => prev.filter((k) => k.id !== id))
- 62:   }
- 63: 
- 64:   const incomeKeywords = keywords.filter((k) => k.type === 'income')
- 65:   const expenseKeywords = keywords.filter((k) => k.type === 'expense')
- 66: 
- 67:   if (loading) {
- 68:     return (
- 69:       <div style={{ maxWidth: '480px' }}>
- 70:         <div className="skeleton" style={{ height: '28px', width: '180px', marginBottom: '12px' }} />
- 71:         <div className="skeleton" style={{ height: '280px', borderRadius: '14px' }} />
- 72:       </div>
- 73:     )
- 74:   }
- 75: 
- 76:   return (
- 77:     <div className="animate-fade-in" style={{ maxWidth: '560px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
- 78:       {/* Header */}
- 79:       <div>
- 80:         <button
- 81:           onClick={() => window.history.back()}
- 82:           style={{
- 83:             display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#737373',
- 84:             background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '4px',
- 85:             transition: 'color 0.15s',
- 86:           }}
- 87:           onMouseEnter={(e) => { e.currentTarget.style.color = '#0a0a0a' }}
- 88:           onMouseLeave={(e) => { e.currentTarget.style.color = '#737373' }}
- 89:         >
- 90:           <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
- 91:             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
- 92:           </svg>
- 93:           Atrás
- 94:         </button>
- 95:         <h1 style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>Palabras clave</h1>
- 96:         <p style={{ fontSize: '14px', color: '#737373', margin: '2px 0 0' }}>
- 97:           Cuando envíes un mensaje por WhatsApp con estas palabras, se clasificará automáticamente como ingreso o gasto.
- 98:         </p>
- 99:       </div>
-100: 
-101:       {/* Add keyword */}
-102:       <div style={{
-103:         backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5', padding: '20px',
-104:       }}>
-105:         <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: '0 0 12px' }}>Agregar palabra clave</h3>
-106:         <div style={{ display: 'flex', gap: '8px' }}>
-107:           <input
-108:             value={newKeyword}
-109:             onChange={(e) => setNewKeyword(e.target.value)}
-110:             placeholder="Ej: venta, compra, pago..."
-111:             style={{ ...inputStyle, flex: 1 }}
-112:             onFocus={(e) => { e.currentTarget.style.borderColor = '#a3a3a3' }}
-113:             onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e5e5' }}
-114:             onKeyDown={(e) => { if (e.key === 'Enter') addKeyword() }}
-115:           />
-116:           <select
-117:             value={newType}
-118:             onChange={(e) => setNewType(e.target.value as 'income' | 'expense')}
-119:             style={{ ...inputStyle, cursor: 'pointer', width: 'auto' }}
-120:           >
-121:             <option value="expense">Gasto</option>
-122:             <option value="income">Ingreso</option>
-123:           </select>
-124:           <button
-125:             onClick={addKeyword}
-126:             disabled={saving || !newKeyword.trim()}
-127:             style={{
-128:               padding: '10px 16px', borderRadius: '8px', border: 'none',
-129:               backgroundColor: '#0a0a0a', color: '#fafafa', fontSize: '14px', fontWeight: 600,
-130:               cursor: (saving || !newKeyword.trim()) ? 'not-allowed' : 'pointer',
-131:               transition: 'all 0.15s', opacity: (saving || !newKeyword.trim()) ? 0.4 : 1,
-132:             }}
-133:             onMouseEnter={(e) => { if (!saving) e.currentTarget.style.backgroundColor = '#262626' }}
-134:             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0a0a0a' }}
-135:           >
-136:             {saving ? '...' : '+'}
-137:           </button>
-138:         </div>
-139:       </div>
-140: 
-141:       {/* Keywords lists */}
-142:       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-143:         {/* Income */}
-144:         <div style={{ backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5', padding: '20px' }}>
-145:           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-146:             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
-147:             <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>Ingresos</h3>
-148:             <span style={{ fontSize: '12px', color: '#a3a3a3' }}>({incomeKeywords.length})</span>
-149:           </div>
-150:           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-151:             {incomeKeywords.length === 0 ? (
-152:               <p style={{ fontSize: '13px', color: '#a3a3a3' }}>Sin keywords de ingreso</p>
-153:             ) : incomeKeywords.map((k) => (
-154:               <div key={k.id} style={{
-155:                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-156:                 padding: '8px 12px', borderRadius: '8px', backgroundColor: '#f0fdf4',
-157:                 transition: 'background-color 0.15s',
-158:               }}>
-159:                 <span style={{ fontSize: '13px', color: '#166534', fontWeight: 500 }}>{k.keyword}</span>
-160:                 <button
-161:                   onClick={() => removeKeyword(k.id)}
-162:                   style={{
-163:                     padding: '2px', background: 'none', border: 'none', cursor: 'pointer',
-164:                     color: '#a3a3a3', display: 'flex', transition: 'color 0.15s',
-165:                   }}
-166:                   onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626' }}
-167:                   onMouseLeave={(e) => { e.currentTarget.style.color = '#a3a3a3' }}
-168:                 >
-169:                   <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-170:                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-171:                   </svg>
-172:                 </button>
-173:               </div>
-174:             ))}
-175:           </div>
-176:         </div>
-177: 
-178:         {/* Expense */}
-179:         <div style={{ backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5', padding: '20px' }}>
-180:           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-181:             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
-182:             <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>Gastos</h3>
-183:             <span style={{ fontSize: '12px', color: '#a3a3a3' }}>({expenseKeywords.length})</span>
-184:           </div>
-185:           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-186:             {expenseKeywords.length === 0 ? (
-187:               <p style={{ fontSize: '13px', color: '#a3a3a3' }}>Sin keywords de gasto</p>
-188:             ) : expenseKeywords.map((k) => (
-189:               <div key={k.id} style={{
-190:                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-191:                 padding: '8px 12px', borderRadius: '8px', backgroundColor: '#fef2f2',
-192:                 transition: 'background-color 0.15s',
-193:               }}>
-194:                 <span style={{ fontSize: '13px', color: '#991b1b', fontWeight: 500 }}>{k.keyword}</span>
-195:                 <button
-196:                   onClick={() => removeKeyword(k.id)}
-197:                   style={{
-198:                     padding: '2px', background: 'none', border: 'none', cursor: 'pointer',
-199:                     color: '#a3a3a3', display: 'flex', transition: 'color 0.15s',
-200:                   }}
-201:                   onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626' }}
-202:                   onMouseLeave={(e) => { e.currentTarget.style.color = '#a3a3a3' }}
-203:                 >
-204:                   <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-205:                     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-206:                   </svg>
-207:                 </button>
-208:               </div>
-209:             ))}
-210:           </div>
-211:         </div>
-212:       </div>
-213:     </div>
-214:   )
-215: }
+1: // pages/SettingsWhatsAppPage.tsx — shell
+2: import { WhatsAppSettings } from '@/features/settings/components/WhatsAppSettings.view'
+3: 
+4: export default function SettingsWhatsAppPage() {
+5:   return <WhatsAppSettings />
+6: }
 ````
 
-## File: frontend/src/features/ventures/components/VentureCard.tsx
+## File: frontend/src/features/ventures/pages/VentureDetailPage.tsx
 ````typescript
-  1: // features/ventures/components/VentureCard.tsx — Monochrome premium card
-  2: import { useNavigate } from 'react-router-dom'
-  3: import { formatCurrency, formatROI } from '@/shared/lib/formatters'
-  4: import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS, VENTURE_MODE_METRICS } from '@/shared/lib/constants'
-  5: import { calculateROI, ventureHealth, calculateHealth } from '../utils'
-  6: import type { Venture } from '../types'
-  7: 
-  8: interface VentureCardProps {
-  9:   venture: Venture
- 10:   delay?: number
- 11: }
- 12: 
- 13: const statusDotColors: Record<string, string> = {
- 14:   active: '#22c55e',
- 15:   paused: '#eab308',
- 16:   closed: '#a3a3a3',
- 17:   idea: '#737373',
- 18: }
- 19: 
- 20: export function VentureCard({ venture, delay = 0 }: VentureCardProps) {
- 21:   const navigate = useNavigate()
- 22:   const isPersonal = venture.mode === 'personal'
- 23:   
- 24:   const metricValue = isPersonal 
- 25:     ? calculateHealth(venture.invested, venture.returned)
- 26:     : calculateROI(venture.invested, venture.returned)
- 27:     
- 28:   // Para personal, health es positivo si queda mucho presupuesto. Para negocio, depende del ROI.
- 29:   // Podríamos reutilizar ventureHealth de utils, o adaptarlo
- 30:   const health = isPersonal
- 31:     ? (metricValue > 20 ? 'positive' : (metricValue > 0 ? 'neutral' : 'negative'))
- 32:     : ventureHealth(metricValue)
- 33: 
- 34:   const healthBg = health === 'positive' ? '#f0fdf4' : health === 'negative' ? '#fef2f2' : '#f5f5f5'
- 35:   const healthColor = health === 'positive' ? '#16a34a' : health === 'negative' ? '#dc2626' : '#525252'
- 36: 
- 37:   const labels = VENTURE_MODE_METRICS[venture.mode || 'business']
- 38: 
- 39:   return (
- 40:     <button
- 41:       onClick={() => navigate(`/ventures/${venture.id}`)}
- 42:       className="animate-fade-in"
- 43:       style={{
- 44:         width: '100%',
- 45:         textAlign: 'left',
- 46:         backgroundColor: '#fff',
- 47:         borderRadius: '14px',
- 48:         padding: '20px',
- 49:         border: '1px solid #e5e5e5',
- 50:         cursor: 'pointer',
- 51:         transition: 'all 0.2s ease',
- 52:         animationDelay: `${delay}ms`,
- 53:         display: 'block',
- 54:         fontFamily: 'inherit',
- 55:       }}
- 56:       onMouseEnter={(e) => {
- 57:         e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.06)'
- 58:         e.currentTarget.style.borderColor = '#d4d4d4'
- 59:         e.currentTarget.style.transform = 'translateY(-2px)'
- 60:       }}
- 61:       onMouseLeave={(e) => {
- 62:         e.currentTarget.style.boxShadow = 'none'
- 63:         e.currentTarget.style.borderColor = '#e5e5e5'
- 64:         e.currentTarget.style.transform = 'translateY(0)'
- 65:       }}
- 66:     >
- 67:       {/* Header */}
- 68:       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
- 69:         <div style={{ minWidth: 0, flex: 1 }}>
- 70:           <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
- 71:             {venture.name}
- 72:           </h3>
- 73:           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
- 74:             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: statusDotColors[venture.status] || '#a3a3a3' }} />
- 75:             <span style={{ fontSize: '12px', color: '#737373' }}>{VENTURE_STATUS_LABELS[venture.status]}</span>
- 76:             <span style={{ fontSize: '12px', color: '#d4d4d4' }}>·</span>
- 77:             <span style={{ fontSize: '12px', color: '#737373' }}>{VENTURE_TYPE_LABELS[venture.type]}</span>
- 78:           </div>
- 79:         </div>
- 80:         <span style={{
- 81:           fontSize: '13px',
- 82:           fontWeight: 700,
- 83:           padding: '4px 10px',
- 84:           borderRadius: '8px',
- 85:           backgroundColor: healthBg,
- 86:           color: healthColor,
- 87:         }} title={labels.roi}>
- 88:           {isPersonal ? `${metricValue}%` : formatROI(metricValue)}
- 89:         </span>
- 90:       </div>
- 91: 
- 92:       {/* Financials */}
- 93:       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
- 94:         <div>
- 95:           <p style={{ fontSize: '12px', color: '#737373', margin: '0 0 2px' }}>{labels.invested}</p>
- 96:           <p style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>{formatCurrency(venture.invested)}</p>
- 97:         </div>
- 98:         <div>
- 99:           <p style={{ fontSize: '12px', color: '#737373', margin: '0 0 2px' }}>{labels.returned}</p>
-100:           <p style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>{formatCurrency(venture.returned)}</p>
-101:         </div>
-102:       </div>
-103: 
-104:       {/* Progress bar */}
-105:       <div style={{ marginTop: '12px' }}>
-106:         <div style={{ height: '4px', backgroundColor: '#f5f5f5', borderRadius: '999px', overflow: 'hidden' }}>
-107:           <div
-108:             style={{
-109:               height: '100%',
-110:               borderRadius: '999px',
-111:               transition: 'width 0.5s ease',
-112:               backgroundColor: health === 'positive' ? '#22c55e' : health === 'negative' ? '#ef4444' : '#a3a3a3',
-113:               width: `${Math.min(100, venture.invested > 0 ? (venture.returned / venture.invested) * 100 : 0)}%`,
-114:             }}
-115:           />
-116:         </div>
-117:       </div>
-118:     </button>
-119:   )
-120: }
+1: // pages/VentureDetailPage.tsx — shell del detalle de venture
+2: import { VentureDetail } from '@/features/ventures/components/VentureDetail.view'
+3: 
+4: export default function VentureDetailPage() {
+5:   return <VentureDetail />
+6: }
 ````
 
-## File: frontend/src/features/ventures/components/VenturesList.tsx
+## File: frontend/src/features/ventures/pages/VenturesPage.tsx
 ````typescript
-  1: // features/ventures/components/VenturesList.tsx — Lista de ventures monochrome
-  2: import { useState } from 'react'
-  3: import { useVentures } from '../hooks/useVentures'
-  4: import { VentureCard } from './VentureCard'
-  5: import { VentureForm } from './VentureForm'
-  6: import type { CreateVentureInput } from '../types'
-  7: 
-  8: export function VenturesList() {
-  9:   const { ventures, loading, error, createVenture } = useVentures()
- 10:   const [showForm, setShowForm] = useState(false)
- 11:   const [filter, setFilter] = useState<string>('all')
- 12: 
- 13:   const filtered = filter === 'all'
- 14:     ? ventures
- 15:     : ventures.filter((v) => v.status === filter)
- 16: 
- 17:   const handleCreate = async (input: CreateVentureInput) => {
- 18:     await createVenture(input)
- 19:   }
- 20: 
- 21:   const filters = [
- 22:     { key: 'all', label: 'Todos' },
- 23:     { key: 'active', label: 'Activos' },
- 24:     { key: 'paused', label: 'Pausados' },
- 25:     { key: 'idea', label: 'Ideas' },
- 26:     { key: 'closed', label: 'Cerrados' },
- 27:   ]
- 28: 
- 29:   if (loading) {
- 30:     return (
- 31:       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
- 32:         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
- 33:           <div>
- 34:             <div className="skeleton" style={{ height: '28px', width: '128px', marginBottom: '4px' }} />
- 35:             <div className="skeleton" style={{ height: '16px', width: '200px' }} />
- 36:           </div>
- 37:           <div className="skeleton" style={{ height: '40px', width: '144px', borderRadius: '10px' }} />
- 38:         </div>
- 39:         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
- 40:           {[...Array(6)].map((_, i) => (
- 41:             <div key={i} className="skeleton" style={{ height: '180px', borderRadius: '14px' }} />
- 42:           ))}
- 43:         </div>
- 44:       </div>
- 45:     )
- 46:   }
- 47: 
- 48:   return (
- 49:     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
- 50:       {/* Header */}
- 51:       <div className="animate-fade-in" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '16px' }}>
- 52:         <div>
- 53:           <h1 style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>Ventures</h1>
- 54:           <p style={{ fontSize: '14px', color: '#737373', margin: '2px 0 0' }}>
- 55:             {ventures.length} proyecto{ventures.length !== 1 ? 's' : ''} registrado{ventures.length !== 1 ? 's' : ''}
- 56:           </p>
- 57:         </div>
- 58:         <button
- 59:           onClick={() => setShowForm(true)}
- 60:           style={{
- 61:             display: 'inline-flex',
- 62:             alignItems: 'center',
- 63:             gap: '8px',
- 64:             padding: '10px 16px',
- 65:             borderRadius: '10px',
- 66:             backgroundColor: '#0a0a0a',
- 67:             color: '#fafafa',
- 68:             fontSize: '14px',
- 69:             fontWeight: 500,
- 70:             border: 'none',
- 71:             cursor: 'pointer',
- 72:             transition: 'all 0.15s',
- 73:           }}
- 74:           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#262626' }}
- 75:           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0a0a0a' }}
- 76:           onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.98)' }}
- 77:           onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
- 78:         >
- 79:           <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
- 80:             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
- 81:           </svg>
- 82:           Nuevo venture
- 83:         </button>
- 84:       </div>
- 85: 
- 86:       {/* Filters */}
- 87:       <div className="animate-fade-in" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', animationDelay: '50ms' }}>
- 88:         {filters.map((f) => (
- 89:           <button
- 90:             key={f.key}
- 91:             onClick={() => setFilter(f.key)}
- 92:             style={{
- 93:               padding: '6px 14px',
- 94:               borderRadius: '8px',
- 95:               fontSize: '13px',
- 96:               fontWeight: 500,
- 97:               border: filter === f.key ? 'none' : '1px solid #e5e5e5',
- 98:               backgroundColor: filter === f.key ? '#0a0a0a' : '#fff',
- 99:               color: filter === f.key ? '#fafafa' : '#525252',
-100:               cursor: 'pointer',
-101:               transition: 'all 0.15s',
-102:             }}
-103:           >
-104:             {f.label}
-105:           </button>
-106:         ))}
-107:       </div>
-108: 
-109:       {/* Error */}
-110:       {error && (
-111:         <div className="animate-fade-in" style={{
-112:           padding: '14px',
-113:           borderRadius: '10px',
-114:           backgroundColor: '#fef2f2',
-115:           color: '#dc2626',
-116:           fontSize: '13px',
-117:           border: '1px solid #fecaca',
-118:         }}>
-119:           {error}
-120:         </div>
-121:       )}
-122: 
-123:       {/* Grid */}
-124:       {filtered.length === 0 ? (
-125:         <div className="animate-fade-in" style={{ textAlign: 'center', padding: '80px 0' }}>
-126:           <div style={{
-127:             width: '64px',
-128:             height: '64px',
-129:             borderRadius: '14px',
-130:             backgroundColor: '#f5f5f5',
-131:             display: 'flex',
-132:             alignItems: 'center',
-133:             justifyContent: 'center',
-134:             margin: '0 auto 16px',
-135:           }}>
-136:             <svg style={{ width: '28px', height: '28px', color: '#a3a3a3' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-137:               <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0M12 12.75h.008v.008H12v-.008z" />
-138:             </svg>
-139:           </div>
-140:           <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>No hay ventures {filter !== 'all' ? 'con este filtro' : 'aún'}</p>
-141:           {filter === 'all' && (
-142:             <button
-143:               onClick={() => setShowForm(true)}
-144:               style={{
-145:                 marginTop: '12px',
-146:                 fontSize: '14px',
-147:                 color: '#171717',
-148:                 fontWeight: 500,
-149:                 background: 'none',
-150:                 border: 'none',
-151:                 cursor: 'pointer',
-152:                 textDecoration: 'underline',
-153:                 textUnderlineOffset: '4px',
-154:                 padding: 0,
-155:               }}
-156:             >
-157:               Crear tu primer venture
-158:             </button>
-159:           )}
-160:         </div>
-161:       ) : (
-162:         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-163:           {filtered.map((v, i) => (
-164:             <VentureCard key={v.id} venture={v} delay={i * 50} />
-165:           ))}
-166:         </div>
-167:       )}
-168: 
-169:       {/* Create modal */}
-170:       {showForm && (
-171:         <VentureForm
-172:           onSubmit={handleCreate}
-173:           onClose={() => setShowForm(false)}
-174:         />
-175:       )}
-176:     </div>
-177:   )
-178: }
+1: // pages/VenturesPage.tsx — shell de la feature ventures
+2: import { VenturesList } from '@/features/ventures/components/VenturesList.view'
+3: 
+4: export default function VenturesPage() {
+5:   return <VenturesList />
+6: }
 ````
 
 ## File: frontend/src/features/ventures/store.ts
@@ -5145,221 +6166,102 @@ package.json
 28: }
 ````
 
-## File: frontend/src/features/settings/components/WhatsAppSettings.tsx
+## File: frontend/src/features/dashboard/components/VentureROIChart.tsx
 ````typescript
-  1: import { useState, useEffect, type FormEvent } from 'react'
-  2: import { supabase } from '@/shared/lib/supabase'
-  3: import { useAuthStore } from '@/features/auth/store'
-  4: 
-  5: const inputStyle: React.CSSProperties = {
-  6:   width: '100%',
-  7:   padding: '10px 14px',
-  8:   borderRadius: '8px',
-  9:   backgroundColor: '#fafafa',
- 10:   border: '1px solid #e5e5e5',
- 11:   color: '#171717',
- 12:   fontSize: '14px',
- 13:   outline: 'none',
- 14:   fontFamily: 'inherit',
- 15:   transition: 'border-color 0.15s',
- 16: }
- 17: 
- 18: export function WhatsAppSettings() {
- 19:   const [phoneNumberId, setPhoneNumberId] = useState('')
- 20:   const [accessToken, setAccessToken] = useState('')
- 21:   const [verifyToken, setVerifyToken] = useState('')
- 22:   const [saving, setSaving] = useState(false)
- 23:   const [loading, setLoading] = useState(true)
- 24:   const [success, setSuccess] = useState<string | null>(null)
- 25:   const [error, setError] = useState<string | null>(null)
- 26:   const session = useAuthStore((s) => s.session)
- 27: 
- 28:   useEffect(() => {
- 29:     const fetchSettings = async () => {
- 30:       const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
- 31:       const { data, error } = await supabase.functions.invoke('user-settings/integrations', {
- 32:         method: 'GET',
- 33:         headers,
- 34:       })
- 35:       if (!error && data) {
- 36:         const d = data.data
- 37:         if (d) {
- 38:           setPhoneNumberId(d.whatsapp_phone_number_id || '')
- 39:           setVerifyToken(d.whatsapp_verify_token || '')
- 40:           setAccessToken(d.has_access_token ? '••••••••' : '')
- 41:         }
- 42:       }
- 43:       setLoading(false)
- 44:     }
- 45:     if (session?.access_token) {
- 46:       fetchSettings()
- 47:     } else {
- 48:       setLoading(false)
- 49:     }
- 50:   }, [session?.access_token])
- 51: 
- 52:   const handleSubmit = async (e: FormEvent) => {
- 53:     e.preventDefault()
- 54:     setError(null)
- 55:     setSuccess(null)
- 56:     setSaving(true)
- 57:     try {
- 58:       const body: Record<string, string> = {
- 59:         whatsapp_phone_number_id: phoneNumberId,
- 60:         whatsapp_verify_token: verifyToken,
- 61:       }
- 62:       if (accessToken && !accessToken.startsWith('•')) {
- 63:         body.whatsapp_access_token = accessToken
- 64:       }
- 65: 
- 66:       const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
- 67:       const { error } = await supabase.functions.invoke('user-settings/integrations', {
- 68:         method: 'PUT',
- 69:         body,
- 70:         headers,
- 71:       })
- 72:       
- 73:       if (error) {
- 74:         throw new Error(error.message || 'Error saving settings')
- 75:       }
- 76:       setSuccess('Configuración guardada')
- 77:     } catch (err: unknown) {
- 78:       setError(err instanceof Error ? err.message : 'Error al guardar')
- 79:     } finally {
- 80:       setSaving(false)
- 81:     }
- 82:   }
- 83: 
- 84:   if (loading) {
- 85:     return (
- 86:       <div style={{ maxWidth: '480px' }}>
- 87:         <div className="skeleton" style={{ height: '28px', width: '180px', marginBottom: '12px' }} />
- 88:         <div className="skeleton" style={{ height: '280px', borderRadius: '14px' }} />
- 89:       </div>
- 90:     )
- 91:   }
- 92: 
- 93:   return (
- 94:     <div className="animate-fade-in" style={{ maxWidth: '480px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
- 95:       {/* Header */}
- 96:       <div>
- 97:         <button
- 98:           onClick={() => window.history.back()}
- 99:           style={{
-100:             display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#737373',
-101:             background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '4px',
-102:             transition: 'color 0.15s',
-103:           }}
-104:           onMouseEnter={(e) => { e.currentTarget.style.color = '#0a0a0a' }}
-105:           onMouseLeave={(e) => { e.currentTarget.style.color = '#737373' }}
-106:         >
-107:           <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-108:             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-109:           </svg>
-110:           Atrás
-111:         </button>
-112:         <h1 style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>API de WhatsApp</h1>
-113:         <p style={{ fontSize: '14px', color: '#737373', margin: '2px 0 0' }}>
-114:           Conecta tu número de Meta Business para recibir transacciones vía WhatsApp
-115:         </p>
-116:       </div>
-117: 
-118:       {/* Form card */}
-119:       <div style={{
-120:         backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5', padding: '24px',
-121:       }}>
-122:         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-123:           <div>
-124:             <label htmlFor="wa-phone-id" style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#525252', marginBottom: '6px' }}>Phone Number ID</label>
-125:             <input
-126:               id="wa-phone-id" value={phoneNumberId} onChange={(e) => setPhoneNumberId(e.target.value)}
-127:               placeholder="1234567890" style={inputStyle}
-128:               onFocus={(e) => { e.currentTarget.style.borderColor = '#a3a3a3' }}
-129:               onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e5e5' }}
-130:             />
-131:           </div>
-132:           <div>
-133:             <label htmlFor="wa-token" style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#525252', marginBottom: '6px' }}>Access Token</label>
-134:             <input
-135:               id="wa-token" type="password" value={accessToken}
-136:               onFocus={() => { if (accessToken.startsWith('•')) setAccessToken('') }}
-137:               onChange={(e) => setAccessToken(e.target.value)}
-138:               placeholder="EAAxxxxxxx..." style={inputStyle}
-139:             />
-140:             <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '4px 0 0' }}>Se almacena encriptado en la base de datos</p>
-141:           </div>
-142:           <div>
-143:             <label htmlFor="wa-verify" style={{ display: 'block', fontSize: '13px', fontWeight: 500, color: '#525252', marginBottom: '6px' }}>Verify Token</label>
-144:             <input
-145:               id="wa-verify" value={verifyToken} onChange={(e) => setVerifyToken(e.target.value)}
-146:               placeholder="mi_token_secreto" style={inputStyle}
-147:               onFocus={(e) => { e.currentTarget.style.borderColor = '#a3a3a3' }}
-148:               onBlur={(e) => { e.currentTarget.style.borderColor = '#e5e5e5' }}
-149:             />
-150:             <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '4px 0 0' }}>Usado por Meta para verificar tu webhook</p>
-151:           </div>
-152: 
-153:           {error && (
-154:             <div className="animate-fade-in" style={{
-155:               padding: '12px', borderRadius: '8px', backgroundColor: '#fef2f2',
-156:               color: '#dc2626', fontSize: '13px', border: '1px solid #fecaca',
-157:             }}>
-158:               {error}
-159:             </div>
-160:           )}
-161:           {success && (
-162:             <div className="animate-fade-in" style={{
-163:               padding: '12px', borderRadius: '8px', backgroundColor: '#f0fdf4',
-164:               color: '#16a34a', fontSize: '13px', border: '1px solid #bbf7d0',
-165:             }}>
-166:               {success}
-167:             </div>
-168:           )}
-169: 
-170:           <button
-171:             type="submit" disabled={saving}
-172:             style={{
-173:               width: '100%', padding: '10px 16px', borderRadius: '10px', border: 'none',
-174:               backgroundColor: '#0a0a0a', color: '#fafafa', fontSize: '14px', fontWeight: 600,
-175:               cursor: saving ? 'not-allowed' : 'pointer', transition: 'all 0.15s',
-176:               opacity: saving ? 0.5 : 1, display: 'flex', alignItems: 'center',
-177:               justifyContent: 'center', gap: '8px', fontFamily: 'inherit',
-178:             }}
-179:             onMouseEnter={(e) => { if (!saving) e.currentTarget.style.backgroundColor = '#262626' }}
-180:             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0a0a0a' }}
-181:           >
-182:             {saving && (
-183:               <svg className="animate-spin" style={{ width: '16px', height: '16px' }} viewBox="0 0 24 24" fill="none">
-184:                 <circle style={{ opacity: 0.25 }} cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-185:                 <path style={{ opacity: 0.75 }} fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-186:               </svg>
-187:             )}
-188:             Guardar configuración
-189:           </button>
-190:         </form>
-191:       </div>
-192: 
-193:       {/* Webhook URL info */}
-194:       <div style={{
-195:         backgroundColor: '#f5f5f5', borderRadius: '14px', padding: '20px',
-196:         border: '1px solid #e5e5e5',
-197:       }}>
-198:         <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: '0 0 8px' }}>URL del Webhook</h3>
-199:         <code style={{
-200:           display: 'block', padding: '10px 14px', borderRadius: '8px',
-201:           backgroundColor: '#fff', border: '1px solid #e5e5e5',
-202:           fontSize: '12px', color: '#525252', wordBreak: 'break-all',
-203:           fontFamily: 'monospace',
-204:         }}>
-205:           {import.meta.env.VITE_SUPABASE_URL}/functions/v1/whatsapp-webhook
-206:         </code>
-207:         <p style={{ fontSize: '12px', color: '#737373', margin: '8px 0 0' }}>
-208:           Configura esta URL en tu app de Meta Business como endpoint del webhook de WhatsApp.
-209:         </p>
-210:       </div>
-211:     </div>
-212:   )
-213: }
+ 1: // features/dashboard/components/VentureROIChart.tsx
+ 2: import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+ 3: import type { Venture } from '@backend/_shared/types'
+ 4: import { calculateROI, ventureHealth } from '@/shared/lib/metrics'
+ 5: import { formatROI } from '@/shared/lib/formatters'
+ 6: 
+ 7: interface VentureROIChartProps {
+ 8:   ventures: Venture[]
+ 9: }
+10: 
+11: export function VentureROIChart({ ventures }: VentureROIChartProps) {
+12:   const activeBusinessVentures = ventures.filter(
+13:     (v) => (v.status === 'active' || v.status === 'paused') && v.mode !== 'personal'
+14:   )
+15:   
+16:   if (activeBusinessVentures.length === 0) {
+17:     return (
+18:       <div 
+19:         className="animate-fade-in"
+20:         style={{ 
+21:           backgroundColor: '#fff', 
+22:           border: '1px solid #e5e5e5', 
+23:           borderRadius: '14px', 
+24:           padding: '20px',
+25:           display: 'flex',
+26:           flexDirection: 'column',
+27:           alignItems: 'center',
+28:           justifyContent: 'center',
+29:           minHeight: '200px',
+30:           animationDelay: '250ms'
+31:         }}
+32:       >
+33:         <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>No hay negocios activos para medir el ROI</p>
+34:       </div>
+35:     )
+36:   }
+37: 
+38:   const data = activeBusinessVentures.map(v => {
+39:     const roi = calculateROI(v.invested, v.returned)
+40:     return {
+41:       name: v.name,
+42:       roi,
+43:       health: ventureHealth(roi)
+44:     }
+45:   }).sort((a, b) => b.roi - a.roi)
+46: 
+47:   const minHeight = Math.max((data.length * 44) + 80, 200)
+48: 
+49:   return (
+50:     <div
+51:       className="animate-fade-in"
+52:       style={{
+53:         backgroundColor: '#fff',
+54:         borderRadius: '14px',
+55:         padding: '20px',
+56:         border: '1px solid #e5e5e5',
+57:         animationDelay: '250ms',
+58:       }}
+59:     >
+60:       <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: '0 0 16px' }}>
+61:         ¿A cuál meterle más? — ranking por ROI
+62:       </h3>
+63:       <div style={{ height: `${minHeight}px` }}>
+64:         <ResponsiveContainer width="100%" height="100%">
+65:           <BarChart data={data} layout="vertical" margin={{ top: 0, right: 30, left: 0, bottom: 0 }}>
+66:             <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" horizontal={true} vertical={false} />
+67:             <XAxis type="number" tick={{ fontSize: 12, fill: '#737373' }} axisLine={false} tickLine={false} tickFormatter={(val) => `${val}%`} />
+68:             <YAxis type="category" dataKey="name" tick={{ fontSize: 12, fill: '#171717', fontWeight: 500 }} axisLine={false} tickLine={false} width={100} />
+69:             <Tooltip
+70:               contentStyle={{
+71:                 backgroundColor: '#fff',
+72:                 border: '1px solid #e5e5e5',
+73:                 borderRadius: '10px',
+74:                 fontSize: '13px',
+75:                 boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+76:               }}
+77:               formatter={(value: any) => [formatROI(Number(value)), 'ROI']}
+78:               cursor={{ fill: '#f5f5f5' }}
+79:             />
+80:             <Bar dataKey="roi" radius={[0, 4, 4, 0]}>
+81:               {data.map((entry, index) => {
+82:                 let color = '#a3a3a3' // neutral
+83:                 if (entry.health === 'positive') color = '#22c55e'
+84:                 if (entry.health === 'negative') color = '#ef4444'
+85:                 
+86:                 return <Cell key={`cell-${index}`} fill={color} />
+87:               })}
+88:             </Bar>
+89:           </BarChart>
+90:         </ResponsiveContainer>
+91:       </div>
+92:     </div>
+93:   )
+94: }
 ````
 
 ## File: frontend/src/features/transactions/components/TransactionForm.tsx
@@ -5601,6 +6503,130 @@ package.json
 235: }
 ````
 
+## File: frontend/src/features/ventures/components/VentureCard.tsx
+````typescript
+  1: // features/ventures/components/VentureCard.tsx — Monochrome premium card
+  2: import { useNavigate } from 'react-router-dom'
+  3: import { formatCurrency, formatROI } from '@/shared/lib/formatters'
+  4: import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS, VENTURE_MODE_METRICS } from '@/shared/lib/constants'
+  5: import { calculateROI, ventureHealth, calculateHealth } from '@/shared/lib/metrics'
+  6: import type { Venture } from '../types'
+  7: 
+  8: interface VentureCardProps {
+  9:   venture: Venture
+ 10:   delay?: number
+ 11: }
+ 12: 
+ 13: const statusDotColors: Record<string, string> = {
+ 14:   active: '#22c55e',
+ 15:   paused: '#eab308',
+ 16:   closed: '#a3a3a3',
+ 17:   idea: '#737373',
+ 18: }
+ 19: 
+ 20: export function VentureCard({ venture, delay = 0 }: VentureCardProps) {
+ 21:   const navigate = useNavigate()
+ 22:   const isPersonal = venture.mode === 'personal'
+ 23:   
+ 24:   const metricValue = isPersonal 
+ 25:     ? calculateHealth(venture.invested, venture.returned)
+ 26:     : calculateROI(venture.invested, venture.returned)
+ 27:     
+ 28:   // Para personal, health es positivo si queda mucho presupuesto. Para negocio, depende del ROI.
+ 29:   // Podríamos reutilizar ventureHealth de utils, o adaptarlo
+ 30:   const health = isPersonal
+ 31:     ? (metricValue > 20 ? 'positive' : (metricValue > 0 ? 'neutral' : 'negative'))
+ 32:     : ventureHealth(metricValue)
+ 33: 
+ 34:   const healthBg = health === 'positive' ? '#f0fdf4' : health === 'negative' ? '#fef2f2' : '#f5f5f5'
+ 35:   const healthColor = health === 'positive' ? '#16a34a' : health === 'negative' ? '#dc2626' : '#525252'
+ 36: 
+ 37:   const labels = VENTURE_MODE_METRICS[venture.mode || 'business']
+ 38: 
+ 39:   return (
+ 40:     <button
+ 41:       onClick={() => navigate(`/ventures/${venture.id}`)}
+ 42:       className="animate-fade-in"
+ 43:       style={{
+ 44:         width: '100%',
+ 45:         textAlign: 'left',
+ 46:         backgroundColor: '#fff',
+ 47:         borderRadius: '14px',
+ 48:         padding: '20px',
+ 49:         border: '1px solid #e5e5e5',
+ 50:         cursor: 'pointer',
+ 51:         transition: 'all 0.2s ease',
+ 52:         animationDelay: `${delay}ms`,
+ 53:         display: 'block',
+ 54:         fontFamily: 'inherit',
+ 55:       }}
+ 56:       onMouseEnter={(e) => {
+ 57:         e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.06)'
+ 58:         e.currentTarget.style.borderColor = '#d4d4d4'
+ 59:         e.currentTarget.style.transform = 'translateY(-2px)'
+ 60:       }}
+ 61:       onMouseLeave={(e) => {
+ 62:         e.currentTarget.style.boxShadow = 'none'
+ 63:         e.currentTarget.style.borderColor = '#e5e5e5'
+ 64:         e.currentTarget.style.transform = 'translateY(0)'
+ 65:       }}
+ 66:     >
+ 67:       {/* Header */}
+ 68:       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+ 69:         <div style={{ minWidth: 0, flex: 1 }}>
+ 70:           <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+ 71:             {venture.name}
+ 72:           </h3>
+ 73:           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+ 74:             <div style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: statusDotColors[venture.status] || '#a3a3a3' }} />
+ 75:             <span style={{ fontSize: '12px', color: '#737373' }}>{VENTURE_STATUS_LABELS[venture.status]}</span>
+ 76:             <span style={{ fontSize: '12px', color: '#d4d4d4' }}>·</span>
+ 77:             <span style={{ fontSize: '12px', color: '#737373' }}>{VENTURE_TYPE_LABELS[venture.type]}</span>
+ 78:           </div>
+ 79:         </div>
+ 80:         <span style={{
+ 81:           fontSize: '13px',
+ 82:           fontWeight: 700,
+ 83:           padding: '4px 10px',
+ 84:           borderRadius: '8px',
+ 85:           backgroundColor: healthBg,
+ 86:           color: healthColor,
+ 87:         }} title={labels.roi}>
+ 88:           {isPersonal ? `${metricValue}%` : formatROI(metricValue)}
+ 89:         </span>
+ 90:       </div>
+ 91: 
+ 92:       {/* Financials */}
+ 93:       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+ 94:         <div>
+ 95:           <p style={{ fontSize: '12px', color: '#737373', margin: '0 0 2px' }}>{labels.invested}</p>
+ 96:           <p style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>{formatCurrency(venture.invested)}</p>
+ 97:         </div>
+ 98:         <div>
+ 99:           <p style={{ fontSize: '12px', color: '#737373', margin: '0 0 2px' }}>{labels.returned}</p>
+100:           <p style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>{formatCurrency(venture.returned)}</p>
+101:         </div>
+102:       </div>
+103: 
+104:       {/* Progress bar */}
+105:       <div style={{ marginTop: '12px' }}>
+106:         <div style={{ height: '4px', backgroundColor: '#f5f5f5', borderRadius: '999px', overflow: 'hidden' }}>
+107:           <div
+108:             style={{
+109:               height: '100%',
+110:               borderRadius: '999px',
+111:               transition: 'width 0.5s ease',
+112:               backgroundColor: health === 'positive' ? '#22c55e' : health === 'negative' ? '#ef4444' : '#a3a3a3',
+113:               width: `${Math.min(100, venture.invested > 0 ? (venture.returned / venture.invested) * 100 : 0)}%`,
+114:             }}
+115:           />
+116:         </div>
+117:       </div>
+118:     </button>
+119:   )
+120: }
+````
+
 ## File: frontend/src/features/ventures/components/VentureForm.tsx
 ````typescript
   1: import { useState, type FormEvent } from 'react'
@@ -5825,43 +6851,6 @@ package.json
 220: }
 ````
 
-## File: frontend/src/features/ventures/utils.ts
-````typescript
- 1: // apps/web/src/features/ventures/utils.ts
- 2: // Cálculos de negocio de ventures — NUNCA persistir ROI en DB
- 3: import type { VentureHealth } from './types'
- 4: 
- 5: /** ROI en porcentaje. Nunca persistir en DB. */
- 6: export const calculateROI = (invested: number, returned: number): number => {
- 7:   if (invested === 0 || returned === 0) return 0
- 8:   return Number(((returned - invested) / invested * 100).toFixed(2))
- 9: }
-10: 
-11: /** Cuánto falta para recuperar la inversión. */
-12: export const breakEven = (invested: number, returned: number): number => {
-13:   return Math.max(0, invested - returned)
-14: }
-15: 
-16: /** Estado de salud del venture basado en ROI. */
-17: export const ventureHealth = (roi: number): VentureHealth => {
-18:   if (roi > 0) return 'positive'
-19:   if (roi === 0) return 'neutral'
-20:   return 'negative'
-21: }
-22: 
-23: /** Ganancia neta del venture. */
-24: export const netProfit = (invested: number, returned: number): number => {
-25:   return returned - invested
-26: }
-27: 
-28: /** Salud del presupuesto en porcentaje (0 = agotado, 100 = intacto). Solo para modo personal. */
-29: export const calculateHealth = (budget: number, spent: number): number => {
-30:   if (budget <= 0) return 0
-31:   const remaining = budget - spent
-32:   return Math.max(0, Number(((remaining / budget) * 100).toFixed(2)))
-33: }
-````
-
 ## File: backend/supabase/functions/transactions/index.ts
 ````typescript
   1: import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -6057,321 +7046,6 @@ package.json
 191:     return new Response(JSON.stringify({ code: 'INTERNAL_ERROR', message: 'Unexpected error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 192:   }
 193: })
-````
-
-## File: frontend/src/features/dashboard/components/SmartAlerts.tsx
-````typescript
-  1: // features/dashboard/components/SmartAlerts.tsx — Tarjetas horizontales de alerta
-  2: import { useEffect } from 'react'
-  3: import type { Venture, Transaction } from '@backend/_shared/types'
-  4: import { calculateROI } from '@/features/ventures/utils'
-  5: import { formatROI, formatCurrency, formatDate } from '@/shared/lib/formatters'
-  6: import { useLoans } from '@/features/loans/hooks/useLoans'
-  7: 
-  8: interface SmartAlertsProps {
-  9:   ventures: Venture[]
- 10:   transactions: Transaction[]
- 11: }
- 12: 
- 13: interface AlertData {
- 14:   id: string
- 15:   title: string
- 16:   description: string
- 17:   actionLabel: string
- 18:   borderColor: string
- 19:   bgColor: string
- 20:   titleColor: string
- 21:   actionColor: string
- 22: }
- 23: 
- 24: export function SmartAlerts({ ventures, transactions }: SmartAlertsProps) {
- 25:   const { loans, fetchLoans } = useLoans()
- 26: 
- 27:   useEffect(() => {
- 28:     fetchLoans()
- 29:   }, [fetchLoans])
- 30: 
- 31:   const alerts: AlertData[] = []
- 32:   const activeVentures = ventures.filter((v) => v.status === 'active')
- 33:   const now = new Date()
- 34: 
- 35:   // 1. Alerta Roja: Venture negativo por más de 60 días
- 36:   activeVentures.forEach((v) => {
- 37:     const roi = calculateROI(v.invested, v.returned)
- 38:     const startDate = new Date(v.start_date)
- 39:     const diffDays = Math.ceil(
- 40:       Math.abs(now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
- 41:     )
- 42:     const months = Math.floor(diffDays / 30)
- 43: 
- 44:     if (roi < 0 && diffDays > 60) {
- 45:       const lost = v.invested - v.returned
- 46:       alerts.push({
- 47:         id: `red_${v.id}`,
- 48:         title: `${v.name} lleva ${months > 0 ? `${months} ${months === 1 ? 'mes' : 'meses'}` : `${diffDays} días`} en déficit`,
- 49:         description: `Pérdida acumulada de ${formatCurrency(lost)}. Se sugiere revisión de rentabilidad.`,
- 50:         actionLabel: 'Analizar',
- 51:         borderColor: '#ef4444',
- 52:         bgColor: '#FCEBEB',
- 53:         titleColor: '#991b1b',
- 54:         actionColor: '#b91c1c',
- 55:       })
- 56:     }
- 57:   })
- 58: 
- 59:   // 2. Alerta Verde: Mejor venture (ROI positivo)
- 60:   if (activeVentures.length > 0) {
- 61:     let bestVenture = activeVentures[0]
- 62:     let bestROI = calculateROI(bestVenture.invested, bestVenture.returned)
- 63: 
- 64:     for (let i = 1; i < activeVentures.length; i++) {
- 65:       const currentROI = calculateROI(activeVentures[i].invested, activeVentures[i].returned)
- 66:       if (currentROI > bestROI) {
- 67:         bestROI = currentROI
- 68:         bestVenture = activeVentures[i]
- 69:       }
- 70:     }
- 71: 
- 72:     if (bestROI > 0) {
- 73:       alerts.push({
- 74:         id: 'green_best',
- 75:         title: `${bestVenture.name} tiene el mayor rendimiento (${formatROI(bestROI)})`,
- 76:         description: `Venture con mejor desempeño histórico. Evaluar escalabilidad.`,
- 77:         actionLabel: 'Escalar',
- 78:         borderColor: '#22c55e',
- 79:         bgColor: '#EAF3DE',
- 80:         titleColor: '#14532d',
- 81:         actionColor: '#15803d',
- 82:       })
- 83:     }
- 84:   }
- 85: 
- 86:   // 3. Alerta Amarilla: Gastos mensuales elevados
- 87:   const expensesByMonth: Record<string, number> = {}
- 88:   transactions
- 89:     .filter((t) => t.type === 'expense')
- 90:     .forEach((t) => {
- 91:       const key = t.date.substring(0, 7)
- 92:       expensesByMonth[key] = (expensesByMonth[key] || 0) + t.amount
- 93:     })
- 94: 
- 95:   const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
- 96:   const currentExpenses = expensesByMonth[currentMonthKey] || 0
- 97: 
- 98:   let past3Sum = 0
- 99:   let past3Count = 0
-100:   for (let i = 1; i <= 3; i++) {
-101:     const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-102:     const k = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-103:     if (expensesByMonth[k] !== undefined) {
-104:       past3Sum += expensesByMonth[k]
-105:       past3Count++
-106:     }
-107:   }
-108: 
-109:   if (past3Count > 0) {
-110:     const avg = past3Sum / past3Count
-111:     if (avg > 0 && currentExpenses > avg * 1.15) {
-112:       const pctOver = (((currentExpenses - avg) / avg) * 100).toFixed(0)
-113:       alerts.push({
-114:         id: 'yellow_expense',
-115:         title: `Incremento de gasto mensual (${pctOver}%)`,
-116:         description: `Gasto actual: ${formatCurrency(currentExpenses)} vs Histórico: ${formatCurrency(avg)}. Se requiere revisión.`,
-117:         actionLabel: 'Revisar',
-118:         borderColor: '#eab308',
-119:         bgColor: '#FAEEDA',
-120:         titleColor: '#713f12',
-121:         actionColor: '#a16207',
-122:       })
-123:     }
-124:   }
-125: 
-126:   // 5. Alerta Gris/Azul: Proyectos en fase de IDEA o CERRADO
-127:   const ideaCount = ventures.filter((v) => v.status === 'idea').length
-128:   const closedCount = ventures.filter((v) => v.status === 'closed').length
-129: 
-130:   if (ideaCount > 0) {
-131:     alerts.push({
-132:       id: 'info_idea',
-133:       title: `Proyectos en fase de validación (${ideaCount})`,
-134:       description: 'Métricas excluidas del cálculo de ROI global actual.',
-135:       actionLabel: 'Ver proyectos',
-136:       borderColor: '#a3a3a3',
-137:       bgColor: '#fafafa',
-138:       titleColor: '#525252',
-139:       actionColor: '#737373',
-140:     })
-141:   }
-142: 
-143:   if (closedCount > 0) {
-144:     alerts.push({
-145:       id: 'info_closed',
-146:       title: `Proyectos inactivos / cerrados (${closedCount})`,
-147:       description: 'Cuentas archivadas. Excluidas del cálculo de flujo activo.',
-148:       actionLabel: 'Ver archivo',
-149:       borderColor: '#a3a3a3',
-150:       bgColor: '#f5f5f5',
-151:       titleColor: '#737373',
-152:       actionColor: '#a3a3a3',
-153:     })
-154:   }
-155: 
-156:   // 6. Alerta Naranja/Roja: Préstamos por vencer
-157:   loans.filter(l => l.status !== 'paid').forEach((loan) => {
-158:     if (!loan.loan_payments) return
-159:     const nextPayment = loan.loan_payments.find(p => p.status === 'pending')
-160:     if (nextPayment) {
-161:       const dueDate = new Date(nextPayment.due_date)
-162:       const diffMs = dueDate.getTime() - now.getTime()
-163:       const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24))
-164: 
-165:       if (diffDays <= 0) {
-166:         alerts.unshift({
-167:           id: `loan_danger_${loan.id}`,
-168:           title: `Pago Vencido: ${loan.name}`,
-169:           description: `Se debió pagar ${formatCurrency(nextPayment.amount)} el ${formatDate(nextPayment.due_date)}.`,
-170:           actionLabel: 'Pagar ahora',
-171:           borderColor: '#dc2626',
-172:           bgColor: '#fef2f2',
-173:           titleColor: '#991b1b',
-174:           actionColor: '#b91c1c',
-175:         })
-176:       } else if (diffDays <= 7) {
-177:         alerts.unshift({
-178:           id: `loan_warning_${loan.id}`,
-179:           title: `Próximo pago: ${loan.name}`,
-180:           description: `Vence en ${diffDays} día${diffDays !== 1 ? 's' : ''}. Monto: ${formatCurrency(nextPayment.amount)}.`,
-181:           actionLabel: 'Preparar pago',
-182:           borderColor: '#f97316',
-183:           bgColor: '#fff7ed',
-184:           titleColor: '#9a3412',
-185:           actionColor: '#c2410c',
-186:         })
-187:       }
-188:     }
-189:   })
-190: 
-191:   const displayAlerts = alerts.slice(0, 4)
-192: 
-193:   if (displayAlerts.length === 0) {
-194:     return (
-195:       <div
-196:         className="animate-fade-in"
-197:         style={{
-198:           backgroundColor: '#fff',
-199:           borderRadius: '14px',
-200:           padding: '20px',
-201:           border: '1px solid #e5e5e5',
-202:           animationDelay: '400ms',
-203:         }}
-204:       >
-205:         <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: '0 0 12px' }}>
-206:           Alertas inteligentes
-207:         </h3>
-208:         <div
-209:           style={{
-210:             display: 'flex',
-211:             alignItems: 'center',
-212:             gap: '8px',
-213:             padding: '12px',
-214:             backgroundColor: '#f0fdf4',
-215:             borderRadius: '10px',
-216:           }}
-217:         >
-218:           <svg
-219:             style={{ width: '18px', height: '18px', color: '#16a34a', flexShrink: 0 }}
-220:             fill="none"
-221:             viewBox="0 0 24 24"
-222:             stroke="currentColor"
-223:             strokeWidth={2}
-224:           >
-225:             <path
-226:               strokeLinecap="round"
-227:               strokeLinejoin="round"
-228:               d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-229:             />
-230:           </svg>
-231:           <span style={{ fontSize: '14px', color: '#166534', fontWeight: 500 }}>
-232:             Todo en orden. No hay alertas críticas.
-233:           </span>
-234:         </div>
-235:       </div>
-236:     )
-237:   }
-238: 
-239:   return (
-240:     <div
-241:       className="animate-fade-in"
-242:       style={{
-243:         backgroundColor: '#fff',
-244:         borderRadius: '14px',
-245:         padding: '20px',
-246:         border: '1px solid #e5e5e5',
-247:         animationDelay: '400ms',
-248:       }}
-249:     >
-250:       <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#171717', margin: '0 0 12px' }}>
-251:         Alertas inteligentes
-252:       </h3>
-253: 
-254:       <div
-255:         style={{
-256:           display: 'grid',
-257:           gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-258:           gap: '12px',
-259:         }}
-260:       >
-261:         {displayAlerts.map((alert) => (
-262:           <div
-263:             key={alert.id}
-264:             style={{
-265:               borderLeft: `3px solid ${alert.borderColor}`,
-266:               backgroundColor: alert.bgColor,
-267:               borderRadius: '0 10px 10px 0',
-268:               padding: '14px 16px',
-269:               display: 'flex',
-270:               flexDirection: 'column',
-271:               gap: '6px',
-272:             }}
-273:           >
-274:             <p
-275:               style={{
-276:                 fontSize: '13px',
-277:                 fontWeight: 600,
-278:                 color: alert.titleColor,
-279:                 margin: 0,
-280:                 lineHeight: 1.3,
-281:               }}
-282:             >
-283:               {alert.title}
-284:             </p>
-285:             <p
-286:               style={{
-287:                 fontSize: '12px',
-288:                 color: '#525252',
-289:                 margin: 0,
-290:                 lineHeight: 1.4,
-291:               }}
-292:             >
-293:               {alert.description}
-294:             </p>
-295:             <span
-296:               style={{
-297:                 fontSize: '12px',
-298:                 fontWeight: 600,
-299:                 color: alert.actionColor,
-300:                 marginTop: '4px',
-301:                 cursor: 'pointer',
-302:               }}
-303:             >
-304:               {alert.actionLabel}
-305:             </span>
-306:           </div>
-307:         ))}
-308:       </div>
-309:     </div>
-310:   )
-311: }
 ````
 
 ## File: frontend/src/features/transactions/hooks/useTransactions.ts
@@ -6620,619 +7294,6 @@ package.json
 101: }
 ````
 
-## File: frontend/src/features/dashboard/components/DashboardView.tsx
-````typescript
-  1: // features/dashboard/components/DashboardView.tsx — Centro de mando financiero
-  2: import { useEffect } from 'react'
-  3: import { useVentures } from '@/features/ventures/hooks/useVentures'
-  4: import { useTransactions } from '@/features/transactions/hooks/useTransactions'
-  5: import { calculateHealth, calculateROI } from '@/features/ventures/utils'
-  6: import { formatCurrency, formatROI } from '@/shared/lib/formatters'
-  7: import { MetricCard } from './MetricCard'
-  8: import { MonthlyChart } from './MonthlyChart'
-  9: import { VentureROIChart } from './VentureROIChart'
- 10: import { TypeDistributionChart } from './TypeDistributionChart'
- 11: import { VentureStatusList } from './VentureStatusList'
- 12: import { SmartAlerts } from './SmartAlerts'
- 13: import { DashboardLoans } from './DashboardLoans'
- 14: 
- 15: export function DashboardView() {
- 16:   const { ventures, loading: venturesLoading } = useVentures()
- 17:   const { transactions, loading: txLoading, fetchTransactions } = useTransactions()
- 18: 
- 19:   useEffect(() => {
- 20:     fetchTransactions()
- 21:   }, [fetchTransactions])
- 22: 
- 23:   const loading = venturesLoading || txLoading
- 24: 
- 25:   if (loading) {
- 26:     return (
- 27:       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
- 28:         <div>
- 29:           <div className="skeleton" style={{ height: '28px', width: '160px', marginBottom: '4px' }} />
- 30:           <div className="skeleton" style={{ height: '16px', width: '260px' }} />
- 31:         </div>
- 32:         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
- 33:           {[...Array(4)].map((_, i) => (
- 34:             <div key={i} className="skeleton" style={{ height: '128px', borderRadius: '14px' }} />
- 35:           ))}
- 36:         </div>
- 37:         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
- 38:           <div className="skeleton" style={{ height: '320px', borderRadius: '14px' }} />
- 39:           <div className="skeleton" style={{ height: '320px', borderRadius: '14px' }} />
- 40:         </div>
- 41:       </div>
- 42:     )
- 43:   }
- 44: 
- 45:   if (ventures.length === 0) {
- 46:     return (
- 47:       <div className="animate-fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '24px', minHeight: '80vh', alignItems: 'center', justifyContent: 'center' }}>
- 48:         <div style={{
- 49:           width: '80px',
- 50:           height: '80px',
- 51:           borderRadius: '20px',
- 52:           backgroundColor: '#171717',
- 53:           border: '1px solid #2a2a2a',
- 54:           display: 'flex',
- 55:           alignItems: 'center',
- 56:           justifyContent: 'center',
- 57:           marginBottom: '24px',
- 58:           boxShadow: '0 8px 32px rgba(0,0,0,0.1)'
- 59:         }}>
- 60:           <svg style={{ width: '32px', height: '32px', color: '#a3a3a3' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
- 61:             <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
- 62:           </svg>
- 63:         </div>
- 64:         <h1 style={{ fontSize: 'clamp(24px, 3vw, 28px)', fontWeight: 600, color: '#0a0a0a', letterSpacing: '-0.02em', margin: '0 0 12px 0', textAlign: 'center' }}>
- 65:           Resumen Ejecutivo
- 66:         </h1>
- 67:         <p style={{ fontSize: '15px', color: '#737373', maxWidth: '400px', textAlign: 'center', margin: '0 0 32px 0', lineHeight: 1.6 }}>
- 68:           No existen proyectos registrados en el portafolio. Para habilitar las métricas de análisis, registre un nuevo venture.
- 69:         </p>
- 70:         <button
- 71:           onClick={() => window.location.href = '/ventures'}
- 72:           style={{
- 73:             display: 'inline-flex',
- 74:             alignItems: 'center',
- 75:             gap: '8px',
- 76:             padding: '12px 24px',
- 77:             borderRadius: '12px',
- 78:             backgroundColor: '#0a0a0a',
- 79:             color: '#fafafa',
- 80:             fontSize: '15px',
- 81:             fontWeight: 500,
- 82:             border: 'none',
- 83:             cursor: 'pointer',
- 84:             transition: 'all 0.15s',
- 85:             boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
- 86:           }}
- 87:           onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#262626' }}
- 88:           onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#0a0a0a' }}
- 89:           onMouseDown={(e) => { e.currentTarget.style.transform = 'scale(0.98)' }}
- 90:           onMouseUp={(e) => { e.currentTarget.style.transform = 'scale(1)' }}
- 91:         >
- 92:           <svg style={{ width: '18px', height: '18px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
- 93:             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
- 94:           </svg>
- 95:           Crear tu primer venture
- 96:         </button>
- 97:       </div>
- 98:     )
- 99:   }
-100: 
-101:   // — Cálculos de métricas —
-102:   const totalInvested = ventures.reduce((sum, v) => sum + v.invested, 0)
-103:   const totalReturned = ventures.reduce((sum, v) => sum + v.returned, 0)
-104:   const activeVentures = ventures.filter((v) => v.status === 'active')
-105:   const businessVentures = activeVentures.filter(v => v.mode === 'business')
-106:   const personalVentures = activeVentures.filter(v => v.mode === 'personal')
-107: 
-108:   const isPersonalMajority = personalVentures.length > businessVentures.length
-109: 
-110:   let avgMetric = 0
-111:   let positiveCount = 0
-112:   let metricTitle = 'ROI promedio'
-113:   let trendText = ''
-114: 
-115:   if (isPersonalMajority) {
-116:     const healths = personalVentures.map(v => calculateHealth(v.invested, v.returned))
-117:     avgMetric = healths.length > 0 ? healths.reduce((a, b) => a + b, 0) / healths.length : 0
-118:     positiveCount = healths.filter(h => h > 20).length // >20% budget remaining is healthy
-119:     metricTitle = 'Salud Promedio'
-120:     trendText = `${positiveCount} proyecto${positiveCount !== 1 ? 's' : ''} saludable${positiveCount !== 1 ? 's' : ''}`
-121:   } else {
-122:     const rois = businessVentures.map(v => calculateROI(v.invested, v.returned))
-123:     avgMetric = rois.length > 0 ? rois.reduce((a, b) => a + b, 0) / rois.length : 0
-124:     positiveCount = rois.filter((r) => r > 0).length
-125:     metricTitle = 'ROI Promedio'
-126:     trendText = `${positiveCount} venture${positiveCount !== 1 ? 's' : ''} positivo${positiveCount !== 1 ? 's' : ''}`
-127:   }
-128: 
-129:   // Flujo libre del mes actual
-130:   const today = new Date()
-131:   const currentMonthKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
-132:   const monthTx = transactions.filter((t) => t.date.startsWith(currentMonthKey))
-133:   const flujoLibre = monthTx.reduce(
-134:     (sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount),
-135:     0
-136:   )
-137: 
-138:   // Tendencia vs mes anterior
-139:   const prevMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1)
-140:   const prevMonthKey = `${prevMonth.getFullYear()}-${String(prevMonth.getMonth() + 1).padStart(2, '0')}`
-141:   const prevFlujo = transactions
-142:     .filter((t) => t.date.startsWith(prevMonthKey))
-143:     .reduce((sum, t) => sum + (t.type === 'income' ? t.amount : -t.amount), 0)
-144: 
-145:   const flujoTrendText =
-146:     prevFlujo !== 0
-147:       ? `${flujoLibre >= prevFlujo ? '+' : ''}${(((flujoLibre - prevFlujo) / Math.abs(prevFlujo)) * 100).toFixed(0)}% vs mes anterior`
-148:       : flujoLibre >= 0
-149:         ? 'Positivo'
-150:         : 'Negativo'
-151: 
-152:   // Capital total activo
-153:   const capitalActivo = activeVentures.reduce((sum, v) => sum + v.invested, 0)
-154: 
-155:   return (
-156:     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-157:       {/* Header */}
-158:       <div className="animate-fade-in">
-159:         <h1 style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>
-160:           Centro de mando
-161:         </h1>
-162:         <p style={{ fontSize: '14px', color: '#737373', margin: '2px 0 0' }}>
-163:           {ventures.length} venture{ventures.length !== 1 ? 's' : ''} · {monthTx.length} transacciones este mes
-164:         </p>
-165:       </div>
-166: 
-167:       {/* Metric Cards */}
-168:       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-169:         <MetricCard
-170:           title="Flujo libre este mes"
-171:           value={`${flujoLibre >= 0 ? '+' : ''}${formatCurrency(flujoLibre)}`}
-172:           valueColor={flujoLibre >= 0 ? '#16a34a' : '#dc2626'}
-173:           trend={{ value: flujoTrendText, positive: flujoLibre >= 0 }}
-174:           delay={0}
-175:         />
-176:         <MetricCard
-177:           title="Capital total activo"
-178:           value={formatCurrency(capitalActivo)}
-179:           subtitle={`en ${activeVentures.length} venture${activeVentures.length !== 1 ? 's' : ''} activo${activeVentures.length !== 1 ? 's' : ''}`}
-180:           delay={50}
-181:         />
-182:         <MetricCard
-183:           title={metricTitle}
-184:           value={isPersonalMajority ? `${avgMetric.toFixed(0)}%` : formatROI(avgMetric)}
-185:           valueColor={isPersonalMajority ? (avgMetric > 20 ? '#16a34a' : '#dc2626') : (avgMetric > 0 ? '#16a34a' : avgMetric < 0 ? '#dc2626' : undefined)}
-186:           trend={{ value: trendText, positive: isPersonalMajority ? avgMetric > 20 : avgMetric >= 0 }}
-187:           delay={100}
-188:         />
-189:         <MetricCard
-190:           title="Total invertido"
-191:           value={formatCurrency(totalInvested)}
-192:           subtitle={`${formatCurrency(totalReturned)} retornado`}
-193:           delay={150}
-194:         />
-195:       </div>
-196: 
-197:       {/* Fila A: Charts principales */}
-198:       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-199:         <div className="lg:col-span-2">
-200:           <MonthlyChart transactions={transactions} />
-201:         </div>
-202:         <TypeDistributionChart ventures={ventures} />
-203:       </div>
-204: 
-205:       {/* Fila B: ROI Comparativo + Estado de Ventures */}
-206:       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-207:         <VentureROIChart ventures={ventures} />
-208:         <VentureStatusList ventures={ventures} />
-209:       </div>
-210: 
-211:       {/* Fila C: Préstamos Globales */}
-212:       <DashboardLoans />
-213: 
-214:       {/* Fila D: Alertas inteligentes */}
-215:       <SmartAlerts ventures={ventures} transactions={transactions} />
-216: 
-217:       {/* Guía de colores — UX info */}
-218:       <div
-219:         className="animate-fade-in"
-220:         style={{
-221:           backgroundColor: '#fafafa',
-222:           borderRadius: '14px',
-223:           padding: '16px 20px',
-224:           border: '1px solid #f0f0f0',
-225:           animationDelay: '500ms',
-226:         }}
-227:       >
-228:         <p style={{ fontSize: '12px', fontWeight: 600, color: '#a3a3a3', margin: '0 0 10px', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-229:           Guía de indicadores
-230:         </p>
-231:         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px 28px', fontSize: '12px', color: '#525252' }}>
-232:           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-233:             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#22c55e' }} />
-234:             Verde = {isPersonalMajority ? 'Presupuesto saludable' : 'ROI positivo o rentable'}
-235:           </span>
-236:           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-237:             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#eab308' }} />
-238:             Amarillo = {isPersonalMajority ? 'Presupuesto ajustado' : 'Neutral, vigilar'}
-239:           </span>
-240:           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-241:             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#ef4444' }} />
-242:             Rojo = {isPersonalMajority ? 'Presupuesto agotado' : 'En pérdida, revisar'}
-243:           </span>
-244:           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-245:             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#3b82f6' }} />
-246:             Azul = Informativo
-247:           </span>
-248:           <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-249:             <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#a3a3a3' }} />
-250:             Gris = Pausado o sin datos
-251:           </span>
-252:         </div>
-253:       </div>
-254:     </div>
-255:   )
-256: }
-````
-
-## File: frontend/src/features/ventures/components/VentureDetail.tsx
-````typescript
-  1: // features/ventures/components/VentureDetail.tsx — Vista de detalle monochrome
-  2: import { useEffect, useState } from 'react'
-  3: import { useParams, useNavigate } from 'react-router-dom'
-  4: import { supabase } from '@/shared/lib/supabase'
-  5: import { useTransactions } from '@/features/transactions/hooks/useTransactions'
-  6: import { useAuthStore } from '@/features/auth/store'
-  7: import { TransactionForm } from '@/features/transactions/components/TransactionForm'
-  8: import { formatCurrency, formatDate, formatROI } from '@/shared/lib/formatters'
-  9: import { VENTURE_TYPE_LABELS, VENTURE_STATUS_LABELS, VENTURE_MODE_METRICS } from '@/shared/lib/constants'
- 10: import { calculateROI, breakEven, netProfit, ventureHealth, calculateHealth } from '../utils'
- 11: import { VentureForm } from './VentureForm'
- 12: import { LoansSection } from '@/features/loans/components/LoansSection'
- 13: import type { Venture, CreateVentureInput } from '../types'
- 14: 
- 15: export function VentureDetail() {
- 16:   const { id } = useParams<{ id: string }>()
- 17:   const navigate = useNavigate()
- 18:   const [venture, setVenture] = useState<Venture | null>(null)
- 19:   const [loading, setLoading] = useState(true)
- 20:   const [showTxForm, setShowTxForm] = useState(false)
- 21:   const [showEditForm, setShowEditForm] = useState(false)
- 22:   const session = useAuthStore((s) => s.session)
- 23: 
- 24:   const { transactions, loading: txLoading, fetchTransactions, createTransaction, deleteTransaction, total, page, pageSize } = useTransactions(id)
- 25:   
- 26:   const [searchTerm, setSearchTerm] = useState('')
- 27:   const [currentPage, setCurrentPage] = useState(1)
- 28: 
- 29:   useEffect(() => {
- 30:     if (!id) return
- 31:     const fetchVenture = async () => {
- 32:       setLoading(true)
- 33:       const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
- 34:       const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
- 35:         method: 'GET',
- 36:         headers,
- 37:       })
- 38:       if (error || !data) { navigate('/ventures'); return }
- 39:       setVenture(data.data)
- 40:       setLoading(false)
- 41:     }
- 42:     if (session?.access_token) {
- 43:       fetchVenture()
- 44:     }
- 45:   }, [id, navigate, session?.access_token])
- 46: 
- 47:   useEffect(() => {
- 48:     if (id && session?.access_token) {
- 49:       const delay = setTimeout(() => {
- 50:         fetchTransactions({ ventureId: id, page: currentPage, pageSize: 10, search: searchTerm })
- 51:       }, 300)
- 52:       return () => clearTimeout(delay)
- 53:     }
- 54:   }, [id, currentPage, searchTerm, fetchTransactions, session?.access_token])
- 55: 
- 56:   const handleEditVenture = async (input: CreateVentureInput) => {
- 57:     if (!id) return
- 58:     const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
- 59:     const { data, error } = await supabase.functions.invoke(`ventures/${id}`, {
- 60:       method: 'PUT',
- 61:       body: input,
- 62:       headers,
- 63:     })
- 64:     if (error) throw new Error(error.message || 'Error updating venture')
- 65:     setVenture(data.data)
- 66:   }
- 67: 
- 68:   const handleDeleteVenture = async () => {
- 69:     if (!id || !confirm('¿Eliminar este venture y todas sus transacciones?')) return
- 70:     const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined
- 71:     await supabase.functions.invoke(`ventures/${id}`, {
- 72:       method: 'DELETE',
- 73:       headers,
- 74:     })
- 75:     navigate('/ventures')
- 76:   }
- 77: 
- 78:   if (loading || !venture) {
- 79:     return (
- 80:       <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
- 81:         <div className="skeleton" style={{ height: '28px', width: '180px' }} />
- 82:         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
- 83:           {[...Array(4)].map((_, i) => <div key={i} className="skeleton" style={{ height: '80px', borderRadius: '14px' }} />)}
- 84:         </div>
- 85:         <div className="skeleton" style={{ height: '320px', borderRadius: '14px' }} />
- 86:       </div>
- 87:     )
- 88:   }
- 89: 
- 90:   const isPersonal = venture.mode === 'personal'
- 91:   const metricValue = isPersonal 
- 92:     ? calculateHealth(venture.invested, venture.returned)
- 93:     : calculateROI(venture.invested, venture.returned)
- 94:     
- 95:   const health = isPersonal
- 96:     ? (metricValue > 20 ? 'positive' : (metricValue > 0 ? 'neutral' : 'negative'))
- 97:     : ventureHealth(metricValue)
- 98:     
- 99:   const net = netProfit(venture.invested, venture.returned)
-100:   const remaining = breakEven(venture.invested, venture.returned)
-101: 
-102:   const healthColor = health === 'positive' ? '#16a34a' : health === 'negative' ? '#dc2626' : '#525252'
-103:   const netColor = isPersonal 
-104:     ? (venture.returned > venture.invested ? '#dc2626' : '#16a34a')
-105:     : (net >= 0 ? '#16a34a' : '#dc2626')
-106: 
-107:   const labels = VENTURE_MODE_METRICS[venture.mode || 'business']
-108: 
-109:   return (
-110:     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-111:       {/* Header */}
-112:       <div className="animate-fade-in" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
-113:         <div>
-114:           <button
-115:             onClick={() => navigate('/ventures')}
-116:             style={{
-117:               display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px', color: '#737373',
-118:               background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginBottom: '4px',
-119:               transition: 'color 0.15s',
-120:             }}
-121:             onMouseEnter={(e) => { e.currentTarget.style.color = '#0a0a0a' }}
-122:             onMouseLeave={(e) => { e.currentTarget.style.color = '#737373' }}
-123:           >
-124:             <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-125:               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-126:             </svg>
-127:             Ventures
-128:           </button>
-129:           <h1 style={{ fontSize: 'clamp(20px, 3vw, 24px)', fontWeight: 700, color: '#0a0a0a', letterSpacing: '-0.02em', margin: 0 }}>{venture.name}</h1>
-130:           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-131:             <span style={{ fontSize: '13px', color: '#737373' }}>{VENTURE_TYPE_LABELS[venture.type]}</span>
-132:             <span style={{ color: '#d4d4d4' }}>·</span>
-133:             <span style={{ fontSize: '13px', color: '#737373' }}>{VENTURE_STATUS_LABELS[venture.status]}</span>
-134:             {venture.notes && (
-135:               <>
-136:                 <span style={{ color: '#d4d4d4' }}>·</span>
-137:                 <span style={{ fontSize: '13px', color: '#a3a3a3' }}>{venture.notes}</span>
-138:               </>
-139:             )}
-140:           </div>
-141:         </div>
-142:         <div style={{ display: 'flex', gap: '8px' }}>
-143:           <button
-144:             onClick={() => setShowEditForm(true)}
-145:             style={{
-146:               padding: '8px 14px', borderRadius: '10px', border: '1px solid #e5e5e5',
-147:               backgroundColor: '#fff', color: '#525252', fontSize: '13px', fontWeight: 500,
-148:               cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-149:             }}
-150:             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#f5f5f5' }}
-151:             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff' }}
-152:           >
-153:             Editar
-154:           </button>
-155:           <button
-156:             onClick={handleDeleteVenture}
-157:             style={{
-158:               padding: '8px 14px', borderRadius: '10px', border: '1px solid #fecaca',
-159:               backgroundColor: '#fff', color: '#dc2626', fontSize: '13px', fontWeight: 500,
-160:               cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-161:             }}
-162:             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fef2f2' }}
-163:             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#fff' }}
-164:           >
-165:             Eliminar
-166:           </button>
-167:         </div>
-168:       </div>
-169: 
-170:       {/* Stats grid */}
-171:       <div className="animate-fade-in grid grid-cols-2 lg:grid-cols-4 gap-4" style={{ animationDelay: '50ms' }}>
-172:         {[
-173:           { label: labels.invested, value: formatCurrency(venture.invested), color: '#0a0a0a' },
-174:           { label: labels.returned, value: formatCurrency(venture.returned), color: '#0a0a0a' },
-175:           { label: labels.roi, value: isPersonal ? `${metricValue}%` : formatROI(metricValue), color: healthColor },
-176:           { 
-177:             label: isPersonal ? 'Disponible' : (net >= 0 ? 'Ganancia' : 'Por recuperar'), 
-178:             value: formatCurrency(isPersonal ? Math.max(0, venture.invested - venture.returned) : (net >= 0 ? net : remaining)), 
-179:             color: netColor 
-180:           },
-181:         ].map((stat) => (
-182:           <div key={stat.label} style={{
-183:             backgroundColor: '#fff', borderRadius: '14px', padding: '16px 20px',
-184:             border: '1px solid #e5e5e5',
-185:           }}>
-186:             <p style={{ fontSize: '12px', color: '#737373', margin: '0 0 4px' }}>{stat.label}</p>
-187:             <p style={{ fontSize: '18px', fontWeight: 700, color: stat.color, margin: 0, letterSpacing: '-0.02em' }}>{stat.value}</p>
-188:           </div>
-189:         ))}
-190:       </div>
-191: 
-192:       {/* Transactions */}
-193:       <div className="animate-fade-in" style={{
-194:         backgroundColor: '#fff', borderRadius: '14px', border: '1px solid #e5e5e5',
-195:         overflow: 'hidden', animationDelay: '100ms',
-196:       }}>
-197:         <div style={{
-198:           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-199:           padding: '16px 20px', borderBottom: '1px solid #f5f5f5', flexWrap: 'wrap', gap: '12px'
-200:         }}>
-201:           <div>
-202:             <h2 style={{ fontSize: '14px', fontWeight: 600, color: '#0a0a0a', margin: 0 }}>
-203:               Transacciones
-204:               <span style={{ color: '#a3a3a3', fontWeight: 400, marginLeft: '6px' }}>({total})</span>
-205:             </h2>
-206:           </div>
-207:           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-208:             <input 
-209:               type="text" 
-210:               placeholder="Buscar..." 
-211:               value={searchTerm}
-212:               onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
-213:               className="form-input"
-214:               style={{ padding: '6px 12px', fontSize: '13px', width: '200px' }}
-215:             />
-216:             <button
-217:               onClick={() => setShowTxForm(true)}
-218:             style={{
-219:               display: 'inline-flex', alignItems: 'center', gap: '6px',
-220:               padding: '6px 12px', borderRadius: '8px',
-221:               backgroundColor: '#f5f5f5', color: '#525252', fontSize: '13px', fontWeight: 500,
-222:               border: 'none', cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-223:             }}
-224:             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#e5e5e5'; e.currentTarget.style.color = '#0a0a0a' }}
-225:             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = '#f5f5f5'; e.currentTarget.style.color = '#525252' }}
-226:           >
-227:             <svg style={{ width: '14px', height: '14px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-228:               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-229:             </svg>
-230:             Agregar
-231:           </button>
-232:           </div>
-233:         </div>
-234: 
-235:         {txLoading ? (
-236:           <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-237:             {[...Array(3)].map((_, i) => <div key={i} className="skeleton" style={{ height: '48px', borderRadius: '10px' }} />)}
-238:           </div>
-239:         ) : transactions.length === 0 ? (
-240:           <div style={{ textAlign: 'center', padding: '56px 20px' }}>
-241:             <p style={{ color: '#737373', fontSize: '14px', margin: 0 }}>Sin transacciones aún</p>
-242:             <button
-243:               onClick={() => setShowTxForm(true)}
-244:               style={{
-245:                 marginTop: '8px', fontSize: '14px', color: '#0a0a0a', fontWeight: 500,
-246:                 background: 'none', border: 'none', cursor: 'pointer', padding: 0,
-247:                 textDecoration: 'underline', textUnderlineOffset: '4px',
-248:               }}
-249:             >
-250:               Registrar la primera
-251:             </button>
-252:           </div>
-253:         ) : (
-254:           <div>
-255:             {transactions.map((tx, i) => (
-256:               <div
-257:                 key={tx.id}
-258:                 style={{
-259:                   display: 'flex', alignItems: 'center', gap: '14px',
-260:                   padding: '12px 20px', transition: 'background-color 0.15s',
-261:                   borderTop: i > 0 ? '1px solid #fafafa' : 'none',
-262:                 }}
-263:                 onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = '#fafafa' }}
-264:                 onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent' }}
-265:               >
-266:                 <div style={{
-267:                   width: '32px', height: '32px', borderRadius: '8px',
-268:                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-269:                   fontSize: '11px', flexShrink: 0, fontWeight: 700,
-270:                   backgroundColor: tx.type === 'income' ? '#f0fdf4' : '#fef2f2',
-271:                   color: tx.type === 'income' ? '#16a34a' : '#dc2626',
-272:                 }}>
-273:                   {tx.type === 'income' ? 'IN' : 'OUT'}
-274:                 </div>
-275:                 <div style={{ flex: 1, minWidth: 0 }}>
-276:                   <p style={{ fontSize: '13px', fontWeight: 500, color: '#0a0a0a', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-277:                     {tx.description || 'Sin descripción'}
-278:                   </p>
-279:                   <p style={{ fontSize: '12px', color: '#a3a3a3', margin: '2px 0 0' }}>{formatDate(tx.date)}</p>
-280:                 </div>
-281:                 <p style={{
-282:                   fontSize: '13px', fontWeight: 600, flexShrink: 0, margin: 0,
-283:                   color: tx.type === 'income' ? '#16a34a' : '#dc2626',
-284:                 }}>
-285:                   {tx.type === 'income' ? '+' : '-'}{formatCurrency(tx.amount)}
-286:                 </p>
-287:                 <button
-288:                   onClick={() => deleteTransaction(tx.id)}
-289:                   style={{
-290:                     padding: '4px', borderRadius: '6px', background: 'none', border: 'none',
-291:                     cursor: 'pointer', color: '#d4d4d4', display: 'flex',
-292:                     transition: 'color 0.15s',
-293:                     opacity: 0,
-294:                   }}
-295:                   onMouseEnter={(e) => { e.currentTarget.style.color = '#dc2626'; e.currentTarget.style.opacity = '1' }}
-296:                   onMouseLeave={(e) => { e.currentTarget.style.color = '#d4d4d4'; e.currentTarget.style.opacity = '0' }}
-297:                   title="Eliminar"
-298:                   className="group-hover:opacity-100"
-299:                 >
-300:                   <svg style={{ width: '16px', height: '16px' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-301:                     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-302:                   </svg>
-303:                 </button>
-304:               </div>
-305:             ))}
-306:             
-307:             {total > (pageSize || 10) && (
-308:               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', borderTop: '1px solid #f5f5f5' }}>
-309:                 <span style={{ fontSize: '12px', color: '#737373' }}>
-310:                   Página {page} de {Math.ceil(total / (pageSize || 10))}
-311:                 </span>
-312:                 <div style={{ display: 'flex', gap: '8px' }}>
-313:                   <button 
-314:                     disabled={page === 1}
-315:                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-316:                     style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', border: '1px solid #e5e5e5', background: '#fff', cursor: page === 1 ? 'not-allowed' : 'pointer', opacity: page === 1 ? 0.5 : 1 }}
-317:                   >Anterior</button>
-318:                   <button 
-319:                     disabled={page >= Math.ceil(total / (pageSize || 10))}
-320:                     onClick={() => setCurrentPage(p => p + 1)}
-321:                     style={{ padding: '4px 10px', fontSize: '12px', borderRadius: '6px', border: '1px solid #e5e5e5', background: '#fff', cursor: page >= Math.ceil(total / (pageSize || 10)) ? 'not-allowed' : 'pointer', opacity: page >= Math.ceil(total / (pageSize || 10)) ? 0.5 : 1 }}
-322:                   >Siguiente</button>
-323:                 </div>
-324:               </div>
-325:             )}
-326:           </div>
-327:         )}
-328:       </div>
-329: 
-330:       <LoansSection ventureId={venture.id} />
-331: 
-332:       {/* Modals */}
-333:       {showTxForm && (
-334:         <TransactionForm
-335:           ventureId={venture.id}
-336:           onSubmit={createTransaction}
-337:           onClose={() => setShowTxForm(false)}
-338:         />
-339:       )}
-340:       {showEditForm && (
-341:         <VentureForm
-342:           venture={venture}
-343:           onSubmit={handleEditVenture}
-344:           onClose={() => setShowEditForm(false)}
-345:         />
-346:       )}
-347:     </div>
-348:   )
-349: }
-````
-
 ## File: CLAUDE.md
 ````markdown
   1: # CLAUDE.md — Finova
@@ -7271,7 +7332,7 @@ package.json
  34: | **Auth & Function Sync** | ✅ Listo | Inyección manual de `Authorization` header en hooks (resolve 401s) |
  35: | **Seguridad Webhook** | ✅ Listo | Verificación HMAC SHA-256 para mensajes de WhatsApp |
  36: | **Limpieza de código** | ✅ Listo | Archivos huérfanos eliminados y corrección de sintaxis en catches |
- 37: | **Sistema de Préstamos** | ⚠️ Estabilizando | Edge Function `loans`, componente `DashboardLoans` y soporte para pagos semanales (vIn progress) |
+ 37: | **Sistema de Préstamos** | ✅ Listo | Edge Function `loans`, componente `DashboardLoans` y soporte para pagos semanales. |
  38: 
  39: ### 🔲 Pendiente
  40: 
@@ -7606,141 +7667,188 @@ package.json
 369: Regla: Evitar el término ROI en modo personal para evitar confusiones (ej. -100% al gastar).
 370: 
 371: ```typescript
-372: // features/ventures/utils.ts
+372: // features/ventures/utils.ts -> Migrado a shared/lib/metrics.ts
 373: export const calculateROI = (invested: number, returned: number): number => {
 374:   if (invested === 0) return 0
-375:   return Number(((returned - invested) / invested * 100).toFixed(2))
-376: }
-377: 
-378: export const calculateHealth = (budget: number, spent: number): number => {
-379:   if (budget === 0) return 0
-380:   return Math.max(0, ((budget - spent) / budget) * 100)
-381: }
-382: ```
-383: 
-384: ---
-385: 
-386: ## Reglas del agente
-387: 
-388: 1. Leer `CLAUDE.md` completo antes de cualquier acción
-389: 2. Correr `npm run ctx` para obtener contexto actualizado del código
-390: 3. No crear UI de Hogar en Fase 1
-391: 4. ROI nunca se persiste — solo se calcula en frontend (`ventures/utils.ts`)
-392: 5. Cada cambio a DB requiere su migration SQL versionada
-393: 6. No usar `any` en TypeScript
-394: 7. `service_role_key` nunca en `frontend/`
-395: 8. Un feature = un commit atómico
-396: 9. Nunca importar una feature desde otra feature — usar `shared/` si hay lógica común
-397: 10. Tipos de dominio solo en `backend/_shared/types.ts`
-398: 11. `pages/` son shells: sin lógica propia, solo montan features
-399: 12. Cada feature tiene su propio `store.ts` de Zustand — sin store global
-400: 13. Todas las peticiones al backend van via `VITE_SUPABASE_URL/functions/v1/{edge-function}`
-401: 14. **Crucial:** El JWT de Supabase debe incluirse **manualmente** en `Authorization: Bearer` dentro de las llamadas a `supabase.functions.invoke`, ya que el SDK no lo persiste automáticamente en este método.
-402: 15. Seguridad WhatsApp: Webhooks usan HMAC signature verification (Meta standard).
-403: 16. **Seguridad Crítica:** Queda TERMINANTEMENTE PROHIBIDO realizar commit de archivos `.env`. Verificar siempre con `npm run ctx` que no se fuguen secretos en el contexto enviado a agentes.
-404: 17. **Mantenimiento de Contexto:** Al finalizar cada turno de trabajo, el agente DEBE actualizar los checklists en `CLAUDE.md`, `PLAN_TAREA.md` e `implementation_plan.md`.
-405: 18. **Garantía de Sincronía:** Antes de iniciar una nueva tarea, ejecutar `npm run ctx` para asegurar que el `repomix-output.md` sea el reflejo fiel del código actual.
-406: 19. **Estética Monochrome & Sin Emojis:** Queda PROHIBIDO el uso de emojis en el frontend. Se debe usar una estética premium, monocromática y limpia (escala de grises, negro puro, blanco nieve).
-407: 20. **Lenguaje Natural:** Priorizar claridad técnica y naturalidad en mensajes y etiquetas.
-408: 
-409: ---
-410: 
-411: ## Comandos
-412: 
-413: ```bash
-414: # Frontend
-415: npm run dev          # Levanta frontend en desarrollo (Vite)
-416: npm run build        # Build de producción (tsc + vite build)
-417: npm run lint         # ESLint en todo el monorepo
-418: npm run ctx          # Genera repomix-output.md para agentes
-419: 
-420: # Supabase
-421: npx supabase start   # DB local para desarrollo
-422: npx supabase db push # Aplica migrations a Supabase producción
-423: npx supabase functions deploy <name>  # Despliega Edge Function
-424: ```
-425: 
-426: ---
-427: 
-428: ## Desarrollo y DX (Developer Experience)
-429: 
-430: - **Editor (VS Code/Cursor):** Se requiere el uso del archivo `.vscode/settings.json` para habilitar el soporte de Deno exclusivamente en `backend/supabase/functions`, evitando errores de tipado falsos en el frontend.
-431: - **Extensiones recomendadas:** `denoland.vscode-deno`.
-432: 
-433: ---
-434: 
-435: ## Checklist MVP — Fase 1
-436: 
-437: ### Setup base
-438: - [x] Monorepo con npm workspaces
-439: - [x] `frontend` — Vite + React + TypeScript
-440: - [x] Tailwind CSS v4
-441: - [x] Path aliases configurados (`@/` → `src/`, `@backend/` → `../backend/`)
-442: - [x] repomix + script `ctx`
-443: - [x] `.gitignore` — bloquea todos los `.env`
-444: - [x] Limpieza de archivos Vite default (App.css, svgs, hero.png)
-445: - [x] Limpieza de MockData y shared/ui no usados
-446: - [x] Configuración `.vscode/settings.json` para Deno support
-447: 
-448: ### Supabase
-449: - [x] Proyecto creado en Supabase
-450: - [x] Migration 001 aplicada (ventures + RLS)
-451: - [x] Migration 002 aplicada (transactions + RLS)
-452: - [x] Migration 003 aplicada (household_expenses — solo tabla)
-453: - [x] Migration 004 aplicada (user_integrations + RLS)
-454: - [x] Migration 005 aplicada (whatsapp_keywords + RLS)
-455: - [x] Edge Functions desplegadas (ventures, transactions, keywords, whatsapp-config, whatsapp-webhook)
-456: - [x] Rate limiting en Edge Functions
-457: - [ ] Supabase Storage bucket para evidencias
-458: - [x] RLS verificado
-459: - [x] Verificación HMAC para WhatsApp Webhook
-460: - [x] **Saneamiento de seguridad** (Claves rotadas y .gitignore configurado)
-461: 
-462: ### Auth
-463: - [x] Pantalla login / registro (monochrome split UI)
-464: - [x] Integración Google OAuth
-465: - [x] Protección de rutas (ProtectedRoute)
-466: - [x] Hook `useAuth` (Zustand + Supabase listener)
-467: - [x] Persistencia de sesión
-468: - [x] Inyección de Authorization Header en `supabase.functions.invoke`
-469: 
-470: ### Módulo Ventures
-471: - [x] Listado de ventures con ROI calculado
-472: - [x] Crear venture (form validado)
-473: - [x] Editar venture
-474: - [x] Detalle de venture con historial de transacciones
-475: - [x] Agregar transacción (income / expense)
-476: - [x] Upload de evidencia (form con file input)
-477: 
-478: ### Dashboard — Centro de Mando
-479: - [x] 4 métricas contextuales (flujo libre, capital activo, ROI promedio, total invertido)
-480: - [x] MonthlyChart compuesto (barras + línea flujo libre)
-481: - [x] TypeDistributionChart (donut por tipo)
-482: - [x] VentureROIChart (ranking horizontal)
-483: - [x] VentureStatusList (badges de acción)
-484: - [x] SmartAlerts (riesgo, rendimiento, gastos, **notificación de fase idea/cerrado**)
-485: 
-486: ### Mantenimiento de Contexto
-487: - [x] Actualización de `CLAUDE.md` con reglas de Emojis y Salud.
-488: - [x] Sincronización de `implementation_plan.md`, `task.md` y `Sugerencias.md`.
-489: 
-490: ### Módulo Préstamos (En curso)
-491: - [x] Edge Function `loans` básica.
-492: - [x] Componente `DashboardLoans`.
-493: - [ ] Soporte para periodicidad semanal.
-494: - [ ] Semáforo de riesgo e integración con flujo libre.
-495: - [ ] Vista Ledger / Timeline.
-496: 
-497: ### Deploy
-498: - [ ] Variables de entorno configuradas en Vercel
-499: - [ ] Deploy automático desde rama `main`
-500: 
-501: ---
-502: 
-503: ## Próximos pasos (por prioridad)
-504: 
-505: 1. **Storage bucket** — Crear bucket `evidence` en Supabase para evidence_url
-506: 2. **Deploy Vercel** — Configurar env vars + CI/CD
-507: 3. **Hogar (Fase 2)** — UI de gastos compartidos (esquema ya existe)
-508: 4. **Webhooks (Fase 3)** — Mercado Pago + Stripe
+375:   if (returned === 0 && invested > 0) return -100 // Refleja pérdida total inicial
+376:   return Number(((returned - invested) / invested * 100).toFixed(2))
+377: }
+378: 
+379: /** 
+380:  * Salud del presupuesto (Modo Personal/Hogar)
+381:  * @returns 0-100 (Porcentaje de presupuesto disponible)
+382:  */
+383: export const calculateHealth = (budget: number, spent: number): number => {
+384:   if (budget <= 0) return 0
+385:   const remaining = budget - spent
+386:   return Math.max(0, Number(((remaining / budget) * 100).toFixed(2)))
+387: }
+388: 
+389: /** 
+390:  * Estado Semántico de Salud (Basado en ROI) 
+391:  * - Positive: ROI > 10% (Crecimiento real)
+392:  * - Neutral: 0% <= ROI <= 10% (Punto de equilibrio o marginal)
+393:  * - Negative: ROI < 0% (Pérdida)
+394:  */
+395: export const ventureHealth = (roi: number): VentureHealth => {
+396:   if (roi > 10) return 'positive'
+397:   if (roi >= 0) return 'neutral'
+398:   return 'negative'
+399: }
+400: ```
+401: 
+402: ---
+403: 
+404: ## Reglas del agente
+405: 
+406: 1. Leer `CLAUDE.md` completo antes de cualquier acción
+407: 2. Correr `npm run ctx` para obtener contexto actualizado del código
+408: 3. No crear UI de Hogar en Fase 1
+409: 4. ROI nunca se persiste — solo se calcula en frontend (`ventures/utils.ts`)
+410: 5. Cada cambio a DB requiere su migration SQL versionada
+411: 6. No usar `any` en TypeScript
+412: 7. `service_role_key` nunca en `frontend/`
+413: 8. Un feature = un commit atómico
+414: 9. Nunca importar una feature desde otra feature — usar `shared/` si hay lógica común
+415: 10. Tipos de dominio solo en `backend/_shared/types.ts`
+416: 11. `pages/` son shells: sin lógica propia, solo montan features
+417: 12. Cada feature tiene su propio `store.ts` de Zustand — sin store global
+418: 13. Todas las peticiones al backend van via `VITE_SUPABASE_URL/functions/v1/{edge-function}`
+419: 14. **Crucial:** El JWT de Supabase debe incluirse **manualmente** en `Authorization: Bearer` dentro de las llamadas a `supabase.functions.invoke`, ya que el SDK no lo persiste automáticamente en este método.
+420: 15. Seguridad WhatsApp: Webhooks usan HMAC signature verification (Meta standard).
+421: 16. **Seguridad Crítica:** Queda TERMINANTEMENTE PROHIBIDO realizar commit de archivos `.env`. Verificar siempre con `npm run ctx` que no se fuguen secretos en el contexto enviado a agentes.
+422: 17. **Mantenimiento de Contexto:** Al finalizar cada turno de trabajo, el agente DEBE actualizar los checklists en `CLAUDE.md`, `PLAN_TAREA.md` e `implementation_plan.md`.
+423: 18. **Garantía de Sincronía:** Antes de iniciar una nueva tarea, ejecutar `npm run ctx` para asegurar que el `repomix-output.md` sea el reflejo fiel del código actual.
+424: 19. **Estética Monochrome & Sin Emojis:** Queda PROHIBIDO el uso de emojis en el frontend. Se debe usar una estética premium, monocromática y limpia (escala de grises, negro puro, blanco nieve).
+425: 20. **Lenguaje Natural:** Priorizar claridad técnica y naturalidad en mensajes y etiquetas.
+426: 21. **Separación Vista/Lógica — Componentes Tontos:**
+427:     Los archivos en `features/*/components/` son EXCLUSIVAMENTE de renderizado.
+428:     Ningún componente puede contener lógica de negocio: filtros por fecha, cálculos
+429:     de métricas, agregaciones, comparaciones porcentuales o transformaciones de datos.
+430:     
+431:     Toda esa lógica vive en:
+432:     - `features/*/utils.ts` → funciones puras de cálculo
+433:     - `features/*/hooks/use*.ts` → lógica con estado o efectos
+434:     
+435:     El componente solo recibe datos ya procesados y los renderiza.
+436:     
+437:     **Convención de Nombres ESTRICTA:**
+438:     - Componentes de vista (cascarón de página o sección): `.view.tsx`.
+439:     - Componentes de UI unitarios (Botones, Inputs): `.tsx`.
+440:     - Hooks de lógica: `use*.ts`.
+441:     - Utilidades puras: `*.ts`.
+442: 
+443:     **Prohibiciones en Vistas (.view.tsx):**
+444:     - Prohibido el uso de lógica de negocio (agregaciones, reducciones, filtros complejos).
+445:     - Prohibido el uso de `useEffect` para cálculos de dominio (debe ir en un hook).
+446:     - Prohibida la declaración de tipos de dominio locales (usar `@backend/_shared/types.ts`).
+447:     
+448:     VIOLACIÓN DETECTABLE: Si un componente contiene `.filter()`, `.reduce()`,
+449:     `.map()` con lógica de dominio (que no sea simple renderizado de lista), o 
+450:     construcción de `Record<>` para agrupamiento, ese código debe extraerse a un Hook o Util.
+451: 
+452:     **Regla de Oro del Vertical Slice:**
+453:     Un cambio en un Feature (ej. `ventures`) NUNCA debe requerir cambios en otro Feature 
+454:     (ej. `dashboard`) más allá de la actualización de una interfaz en `shared`. Si esto sucede,
+455:     la arquitectura está mal acoplada.
+456: ---
+457: 
+458: ## Comandos
+459: 
+460: ```bash
+461: # Frontend
+462: npm run dev          # Levanta frontend en desarrollo (Vite)
+463: npm run build        # Build de producción (tsc + vite build)
+464: npm run lint         # ESLint en todo el monorepo
+465: npm run ctx          # Genera repomix-output.md para agentes
+466: 
+467: # Supabase
+468: npx supabase start   # DB local para desarrollo
+469: npx supabase db push # Aplica migrations a Supabase producción
+470: npx supabase functions deploy <name>  # Despliega Edge Function
+471: ```
+472: 
+473: ---
+474: 
+475: ## Desarrollo y DX (Developer Experience)
+476: 
+477: - **Editor (VS Code/Cursor):** Se requiere el uso del archivo `.vscode/settings.json` para habilitar el soporte de Deno exclusivamente en `backend/supabase/functions`, evitando errores de tipado falsos en el frontend.
+478: - **Extensiones recomendadas:** `denoland.vscode-deno`.
+479: 
+480: ---
+481: 
+482: ## Checklist MVP — Fase 1
+483: 
+484: ### Setup base
+485: - [x] Monorepo con npm workspaces
+486: - [x] `frontend` — Vite + React + TypeScript
+487: - [x] Tailwind CSS v4
+488: - [x] Path aliases configurados (`@/` → `src/`, `@backend/` → `../backend/`)
+489: - [x] repomix + script `ctx`
+490: - [x] `.gitignore` — bloquea todos los `.env`
+491: - [x] Limpieza de archivos Vite default (App.css, svgs, hero.png)
+492: - [x] Limpieza de MockData y shared/ui no usados
+493: - [x] Configuración `.vscode/settings.json` para Deno support
+494: 
+495: ### Supabase
+496: - [x] Proyecto creado en Supabase
+497: - [x] Migration 001 aplicada (ventures + RLS)
+498: - [x] Migration 002 aplicada (transactions + RLS)
+499: - [x] Migration 003 aplicada (household_expenses — solo tabla)
+500: - [x] Migration 004 aplicada (user_integrations + RLS)
+501: - [x] Migration 005 aplicada (whatsapp_keywords + RLS)
+502: - [x] Edge Functions desplegadas (ventures, transactions, keywords, whatsapp-config, whatsapp-webhook)
+503: - [x] Rate limiting en Edge Functions
+504: - [ ] Supabase Storage bucket para evidencias
+505: - [x] RLS verificado
+506: - [x] Verificación HMAC para WhatsApp Webhook
+507: - [x] **Saneamiento de seguridad** (Claves rotadas y .gitignore configurado)
+508: 
+509: ### Auth
+510: - [x] Pantalla login / registro (monochrome split UI)
+511: - [x] Integración Google OAuth
+512: - [x] Protección de rutas (ProtectedRoute)
+513: - [x] Hook `useAuth` (Zustand + Supabase listener)
+514: - [x] Persistencia de sesión
+515: - [x] Inyección de Authorization Header en `supabase.functions.invoke`
+516: 
+517: ### Módulo Ventures
+518: - [x] Listado de ventures con ROI calculado
+519: - [x] Crear venture (form validado)
+520: - [x] Editar venture
+521: - [x] Detalle de venture con historial de transacciones
+522: - [x] Agregar transacción (income / expense)
+523: - [x] Upload de evidencia (form con file input)
+524: 
+525: ### Dashboard — Centro de Mando
+526: - [x] 4 métricas contextuales (flujo libre, capital activo, ROI promedio, total invertido)
+527: - [x] MonthlyChart compuesto (barras + línea flujo libre)
+528: - [x] TypeDistributionChart (donut por tipo)
+529: - [x] VentureROIChart (ranking horizontal)
+530: - [x] VentureStatusList (badges de acción)
+531: - [x] SmartAlerts (riesgo, rendimiento, gastos, **notificación de fase idea/cerrado**)
+532: 
+533: ### Mantenimiento de Contexto
+534: - [x] Actualización de `CLAUDE.md` con reglas de Emojis y Salud.
+535: - [x] Sincronización de `implementation_plan.md`, `task.md` y `Sugerencias.md`.
+536: 
+537: ### Módulo Préstamos (En curso)
+538: - [x] Edge Function `loans` básica.
+539: - [x] Componente `DashboardLoans`.
+540: - [ ] Soporte para periodicidad semanal.
+541: - [ ] Semáforo de riesgo e integración con flujo libre.
+542: - [ ] Vista Ledger / Timeline.
+543: 
+544: ### Deploy
+545: - [ ] Variables de entorno configuradas en Vercel
+546: - [ ] Deploy automático desde rama `main`
+547: 
+548: ---
+549: 
+550: ## Próximos pasos (por prioridad)
+551: 
+552: 1. **Storage bucket** — Crear bucket `evidence` en Supabase para evidence_url
+553: 2. **Deploy Vercel** — Configurar env vars + CI/CD
+554: 3. **Hogar (Fase 2)** — UI de gastos compartidos (esquema ya existe)
+555: 4. **Webhooks (Fase 3)** — Mercado Pago + Stripe
 ````
