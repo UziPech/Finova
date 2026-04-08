@@ -405,7 +405,27 @@ export const calculateHealth = (budget: number, spent: number): number => {
 18. **Garantía de Sincronía:** Antes de iniciar una nueva tarea, ejecutar `npm run ctx` para asegurar que el `repomix-output.md` sea el reflejo fiel del código actual.
 19. **Estética Monochrome & Sin Emojis:** Queda PROHIBIDO el uso de emojis en el frontend. Se debe usar una estética premium, monocromática y limpia (escala de grises, negro puro, blanco nieve).
 20. **Lenguaje Natural:** Priorizar claridad técnica y naturalidad en mensajes y etiquetas.
+21. **Separación Vista/Lógica — Componentes Tontos:**
+    Los archivos en `features/*/components/` son EXCLUSIVAMENTE de renderizado.
+    Ningún componente puede contener lógica de negocio: filtros por fecha, cálculos
+    de métricas, agregaciones, comparaciones porcentuales o transformaciones de datos.
+    
+    Toda esa lógica vive en:
+    - `features/*/utils.ts` → funciones puras de cálculo
+    - `features/*/hooks/use*.ts` → lógica con estado o efectos
+    
+    El componente solo recibe datos ya procesados y los renderiza.
+    
+    **Convención de Nombres (NUEVO):**
+    Para forzar esta separación visualmente en la base de código, los componentes puramente presentacionales (dumb components) que sean el "cascarón" de una vista compleja DEBEN usar el sufijo `.view.tsx` (ej. `Dashboard.view.tsx`, `VentureDetail.view.tsx`). Los archivos `.tsx` estándar se reservan para componentes de UI menores o contenedores ligeros.
 
+    VIOLACIÓN DETECTABLE: Si un componente contiene `.filter()`, `.reduce()`,
+    `.map()` con lógica de dominio, operaciones aritméticas de negocio, o construcción
+    de `Record<>` por agrupación, ese código debe extraerse antes de hacer commit.
+    
+    Los únicos `.map()` permitidos en JSX son para renderizar arrays ya procesados.
+    Ejemplo de lo que NO debe estar en un componente:
+    `transactions.filter(t => t.date.startsWith(key)).reduce(...)` → va a utils o hook.
 ---
 
 ## Comandos
