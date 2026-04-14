@@ -154,6 +154,13 @@ Deno.serve(async (req: Request) => {
         await admin.from('ventures').update({ invested, returned }).eq('id', body.venture_id)
       }
 
+      // Fire-and-forget: detección de anomalías (no bloquea el response)
+      supabase.functions.invoke('analytics', {
+        method: 'POST',
+        body: { action: 'detect', transaction_id: data.id },
+        headers: { Authorization: authHeader },
+      }).catch((err: Error) => console.error('[Tx] Analytics detection failed:', err.message))
+
       return new Response(JSON.stringify({ data }), { status: 201, headers: rh })
     }
 

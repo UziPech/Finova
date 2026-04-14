@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
-import type { Venture } from '@backend/_shared/types'
+import type { Venture, Transaction, VPSResult } from '@backend/_shared/types'
 import { calculateROI, ventureHealth, calculateHealth } from '@/shared/lib/metrics'
+import { calculateVPS } from '@/shared/lib/vps'
 
 export type ActionBadge = {
   label: string
@@ -55,9 +56,17 @@ export interface VentureStatusData {
   health: string
   days: number
   badge: ActionBadge
+  vpsRank: number | null
+  vpsScore: number | null
+  vpsWarning: string | null
+  vpsInterpretation: string | null
 }
 
-export function useVentureStatus(ventures: Venture[]) {
+/**
+ * Hook de estado de ventures — ordenado por VPS (Decisión D1).
+ * El ROI puro se muestra como información, pero el orden usa VPS.
+ */
+export function useVentureStatus(ventures: Venture[], transactions: Transaction[] = []) {
   return useMemo(() => {
     const relevantVentures = ventures.filter(
       (v) => v.status === 'active' || v.status === 'paused'
@@ -74,6 +83,12 @@ export function useVentureStatus(ventures: Venture[]) {
       }
     }).length
 
+    // Calcular VPS para el ordenamiento (Decisión D1)
+    const vpsResults = calculateVPS(relevantVentures, transactions)
+    const vpsMap = new Map<string, VPSResult>(
+      vpsResults.map(r => [r.ventureId, r])
+    )
+
     const ventureData: VentureStatusData[] = relevantVentures
       .map((v) => {
         const isPersonal = v.mode === 'personal'
@@ -87,10 +102,30 @@ export function useVentureStatus(ventures: Venture[]) {
           
         const days = getDaysActive(v.start_date)
         const badge = getActionBadge(metricValue, days, v.status, isPersonal)
-        return { venture: v, isPersonal, metricValue, health, days, badge }
-      })
-      .sort((a, b) => b.metricValue - a.metricValue)
+        const vps = vpsMap.get(v.id)
 
-    return { ventureData, redCount }
-  }, [ventures])
+        return {
+          venture: v,
+          isPersonal,
+          metricValue,
+          health,
+          days,
+          badge,
+          vpsRank: vps?.rank ?? null,
+          vpsScore: vps?.score ?? null,
+          vpsWarning: vps?.warningReason ?? null,
+          vpsInterpretation: vps?.interpretation ?? null,
+        }
+      })
+      // Ordenar por VPS score (Decisión D1), fallback a metricValue
+      .sort((a, b) => {
+        if (a.vpsScore !== null && b.vpsScore !== null) {
+          return b.vpsScore - a.vpsScore
+        }
+        return b.metricValue - a.metricValue
+      })
+
+    return { ventureData, redCount, vpsResults }
+  }, [ventures, transactions])
 }
+

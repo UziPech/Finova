@@ -32,3 +32,13 @@ export const calculateHealth = (budget: number, spent: number): number => {
   const remaining = budget - spent
   return Math.max(0, Number(((remaining / budget) * 100).toFixed(2)))
 }
+
+/**
+ * ROI ponderado por capital — uso interno del VPS.
+ * Aplica log10 al capital para amortiguar diferencias extremas
+ * sin eliminar la importancia del monto invertido.
+ */
+export const calculateROIWeighted = (invested: number, returned: number): number => {
+  const roi = calculateROI(invested, returned)
+  return roi * Math.log10(Math.max(invested, 1))
+}

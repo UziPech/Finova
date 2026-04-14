@@ -30,6 +30,8 @@ export interface Venture {
   start_date: string
   end_date?: string
   notes?: string
+  /** Migration 007 — contexto asociado */
+  context_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -71,6 +73,12 @@ export interface TransactionCategory {
   icon?: string                      // admite emojis
   color?: string
   is_system: boolean
+  /** Migration 007 — contextos donde aplica esta categoría */
+  context_slugs: string[]
+  /** 'global' = todos los ventures, 'venture_specific' = solo asignados */
+  scope: 'global' | 'venture_specific'
+  /** Dirección de la transacción donde aplica */
+  transaction_direction: 'income' | 'expense' | 'both'
   created_at: string
 }
 
@@ -177,10 +185,58 @@ export interface CreateKeywordInput {
   maps_to: TransactionType
 }
 
-// ── Loans (Módulo de Préstamos — Fase 2) ─────────────────────────────────────
+// ── Venture Contexts (Migration 007) ─────────────────────────────────────────
+
+export interface VentureContext {
+  id: string
+  user_id: string | null       // null = contexto del sistema
+  name: string
+  slug: string
+  description?: string
+  icon?: string
+  color?: string
+  is_system: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
+
+export interface CreateVentureContextInput {
+  name: string
+  slug: string
+  description?: string
+  icon?: string
+  color?: string
+}
+
+// ── Venture Category Assignments (Migration 007) ─────────────────────────────
+
+export interface VentureCategoryAssignment {
+  venture_id: string
+  category_id: string
+  created_at: string
+}
+
+// ── Loans (Módulo de Préstamos — Migration 006 + 008) ────────────────────────
 
 export type LoanStatus = 'active' | 'paid' | 'overdue'
 export type LoanPaymentStatus = 'pending' | 'paid' | 'overdue'
+export type LoanType = 'credit_card' | 'personal' | 'mortgage' | 'auto' | 'business' | 'family'
+export type AmortizationType = 'french' | 'revolving' | 'bullet' | 'custom'
+export type PaymentFrequency = 'weekly' | 'biweekly' | 'monthly'
+
+export interface LoanInstitution {
+  id: string
+  name: string
+  short_name?: string
+  loan_type: LoanType
+  apr_min?: number
+  apr_max?: number
+  cat_approx?: number
+  is_active: boolean
+  notes?: string
+  created_at: string
+}
 
 export interface Loan {
   id: string
@@ -194,6 +250,17 @@ export interface Loan {
   end_date?: string
   status: LoanStatus
   notes?: string
+  // Migration 008 — campos extendidos
+  loan_type: LoanType
+  institution_id?: string | null
+  amortization_type: AmortizationType
+  payment_frequency: PaymentFrequency
+  minimum_payment_pct?: number | null
+  current_balance?: number | null
+  credit_limit?: number | null
+  // Relations
+  loan_payments?: LoanPayment[]
+  institution?: LoanInstitution | null
   created_at: string
   updated_at: string
 }
@@ -207,7 +274,27 @@ export interface LoanPayment {
   paid_date?: string | null
   status: LoanPaymentStatus
   notes?: string
+  // Migration 008 — desglose de amortización
+  principal_portion: number
+  interest_portion: number
+  balance_after?: number | null
   created_at: string
+}
+
+export interface AmortizationRow {
+  period: number
+  due_date: string
+  payment_amount: number
+  principal_part: number
+  interest_part: number
+  balance_after: number
+}
+
+export interface AmortizationSummary {
+  monthly_payment: number
+  total_to_pay: number
+  total_interest: number
+  total_periods: number
 }
 
 export interface CreateLoanInput {
@@ -219,8 +306,83 @@ export interface CreateLoanInput {
   start_date: string
   end_date?: string
   notes?: string
-  /** Pagos iniciales a crear con el préstamo */
+  // Migration 008 — campos nuevos
+  loan_type?: LoanType
+  institution_id?: string
+  amortization_type?: AmortizationType
+  payment_frequency?: PaymentFrequency
+  minimum_payment_pct?: number
+  current_balance?: number
+  credit_limit?: number
+  /** Número de períodos para amortización automática */
+  periods?: number
+  /** Legacy: pagos manuales */
   payments?: Array<{ amount: number; due_date: string }>
+}
+
+// ── Analytics — Detección de Anomalías (Migration 009) ───────────────────────
+
+export type AnomalyType =
+  | 'high_spend'
+  | 'low_income'
+  | 'flow_drop'
+  | 'flow_spike'
+  | 'duplicate'
+  | 'category_shift'
+
+export type AnomalySeverity = 'info' | 'warning' | 'critical'
+
+export interface CategoryStats {
+  id: string
+  user_id: string
+  category_id: string | null
+  venture_id: string | null
+  period_months: number
+  mean_amount: number | null
+  std_dev: number | null
+  median_amount: number | null
+  sample_count: number | null
+  last_calculated: string
+}
+
+export interface AnomalyLog {
+  id: string
+  user_id: string
+  transaction_id: string | null
+  venture_id: string | null
+  anomaly_type: AnomalyType
+  severity: AnomalySeverity
+  z_score: number | null
+  description: string
+  related_tx_id: string | null
+  is_dismissed: boolean
+  created_at: string
+  // Joins desde la vista active_anomalies
+  venture_name?: string
+  transaction_amount?: number
+  transaction_date?: string
+  category_name?: string
+}
+
+// ── VPS — Venture Priority Score (Frontend only, nunca persistir) ────────────
+
+export interface VPSResult {
+  ventureId: string
+  score: number
+  rank: number
+  roiWeighted: number
+  capitalScore: number
+  flowScore: number
+  maturityScore: number
+  interpretation: string
+  warningReason: string | null
+}
+
+export interface VPSConfig {
+  weightROI: number
+  weightCapital: number
+  weightFlow: number
+  weightMaturity: number
 }
 
 // ── Rate Limiting ────────────────────────────────────────────────────────────

@@ -192,7 +192,181 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({ code: 'NOT_FOUND', message: 'Use /user-settings/integrations or /user-settings/keywords' }), { status: 404, headers: rh })
+    // ================================================================
+    // CONTEXTS: /user-settings/contexts
+    // ================================================================
+    if (path.includes('contexts')) {
+      const parts = path.split('/').filter(Boolean)
+      const contextId = parts[parts.length - 1] !== 'contexts' ? parts[parts.length - 1] : null
+
+      // GET — listar contextos del sistema + propios
+      if (method === 'GET') {
+        const { data, error } = await supabase
+          .from('venture_contexts')
+          .select('*')
+          .or(`user_id.is.null,user_id.eq.${user.id}`)
+          .order('sort_order')
+
+        if (error) return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })
+        return new Response(JSON.stringify({ data }), { status: 200, headers: rh })
+      }
+
+      // POST — crear contexto personalizado
+      if (method === 'POST') {
+        const body = await req.json()
+        if (!body.name || !body.slug) {
+          return new Response(JSON.stringify({ code: 'VALIDATION_ERROR', message: 'name and slug are required' }), { status: 400, headers: rh })
+        }
+        if (body.name.length > 50) {
+          return new Response(JSON.stringify({ code: 'VALIDATION_ERROR', message: 'name must be 50 characters or less' }), { status: 400, headers: rh })
+        }
+        if (!/^[a-z0-9_]+$/.test(body.slug)) {
+          return new Response(JSON.stringify({ code: 'VALIDATION_ERROR', message: 'slug must be lowercase letters, numbers and underscores only' }), { status: 400, headers: rh })
+        }
+
+        const { data, error } = await supabase
+          .from('venture_contexts')
+          .insert({
+            user_id: user.id,
+            name: body.name.trim(),
+            slug: body.slug.toLowerCase().trim(),
+            description: body.description || null,
+            icon: body.icon || null,
+            color: body.color || null,
+            is_system: false,  // NUNCA confiar en el body
+            sort_order: body.sort_order || 99,
+          })
+          .select()
+          .single()
+
+        if (error) {
+          if (error.code === '23505') {
+            return new Response(JSON.stringify({ code: 'DUPLICATE', message: 'A context with this slug already exists' }), { status: 409, headers: rh })
+          }
+          return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })
+        }
+        return new Response(JSON.stringify({ data }), { status: 201, headers: rh })
+      }
+
+      // DELETE — eliminar contexto propio (no sistema)
+      if (method === 'DELETE') {
+        if (!contextId) {
+          return new Response(JSON.stringify({ code: 'VALIDATION_ERROR', message: 'Context ID required' }), { status: 400, headers: rh })
+        }
+
+        // Verificar que no es del sistema
+        const { data: ctx } = await supabase.from('venture_contexts').select('is_system, user_id').eq('id', contextId).single()
+        if (!ctx) return new Response(JSON.stringify({ code: 'NOT_FOUND', message: 'Context not found' }), { status: 404, headers: rh })
+        if (ctx.is_system) return new Response(JSON.stringify({ code: 'FORBIDDEN', message: 'System contexts cannot be deleted' }), { status: 403, headers: rh })
+        if (ctx.user_id !== user.id) return new Response(JSON.stringify({ code: 'FORBIDDEN', message: 'Cannot delete another user context' }), { status: 403, headers: rh })
+
+        // Verificar si hay ventures asociados
+        const { count } = await supabase.from('ventures').select('id', { count: 'exact', head: true }).eq('context_id', contextId)
+        if (count && count > 0) {
+          return new Response(JSON.stringify({ code: 'CONFLICT', message: `Cannot delete: ${count} venture(s) still use this context. Reassign them first.` }), { status: 409, headers: rh })
+        }
+
+        const { error } = await supabase.from('venture_contexts').delete().eq('id', contextId)
+        if (error) return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })
+        return new Response(JSON.stringify({ message: 'Context deleted' }), { status: 200, headers: rh })
+      }
+    }
+
+    // ================================================================
+    // CATEGORIES: /user-settings/categories
+    // ================================================================
+    if (path.includes('categories')) {
+      const parts = path.split('/').filter(Boolean)
+      const categoryId = parts[parts.length - 1] !== 'categories' ? parts[parts.length - 1] : null
+
+      // GET — listar categorías del sistema + propias, con filtros
+      if (method === 'GET') {
+        let query = supabase
+          .from('transaction_categories')
+          .select('*')
+          .or(`user_id.is.null,user_id.eq.${user.id}`)
+          .order('accounting_type')
+          .order('name')
+
+        const contextSlug = url.searchParams.get('context_slug')
+        const direction = url.searchParams.get('direction')
+
+        if (contextSlug) {
+          // Filtrar: categorías cuyo context_slugs contiene el slug, O es vacío (aplica a todos)
+          query = query.or(`context_slugs.cs.{${contextSlug}},context_slugs.eq.{}`)
+        }
+        if (direction && ['income', 'expense'].includes(direction)) {
+          query = query.or(`transaction_direction.eq.${direction},transaction_direction.eq.both`)
+        }
+
+        const { data, error } = await query
+        if (error) return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })
+        return new Response(JSON.stringify({ data }), { status: 200, headers: rh })
+      }
+
+      // POST — crear categoría personalizada
+      if (method === 'POST') {
+        const body = await req.json()
+        if (!body.name || !body.accounting_type) {
+          return new Response(JSON.stringify({ code: 'VALIDATION_ERROR', message: 'name and accounting_type are required' }), { status: 400, headers: rh })
+        }
+        if (body.name.length > 50) {
+          return new Response(JSON.stringify({ code: 'VALIDATION_ERROR', message: 'name must be 50 characters or less' }), { status: 400, headers: rh })
+        }
+        if (!['income', 'expense', 'capital'].includes(body.accounting_type)) {
+          return new Response(JSON.stringify({ code: 'VALIDATION_ERROR', message: 'accounting_type must be income, expense, or capital' }), { status: 400, headers: rh })
+        }
+
+        const txDirection = body.transaction_direction || 'both'
+        if (!['income', 'expense', 'both'].includes(txDirection)) {
+          return new Response(JSON.stringify({ code: 'VALIDATION_ERROR', message: 'transaction_direction must be income, expense, or both' }), { status: 400, headers: rh })
+        }
+
+        const { data, error } = await supabase
+          .from('transaction_categories')
+          .insert({
+            user_id: user.id,
+            name: body.name.trim(),
+            accounting_type: body.accounting_type,
+            icon: body.icon || null,
+            color: body.color || null,
+            is_system: false,
+            context_slugs: Array.isArray(body.context_slugs) ? body.context_slugs : [],
+            scope: body.scope || 'global',
+            transaction_direction: txDirection,
+          })
+          .select()
+          .single()
+
+        if (error) return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })
+        return new Response(JSON.stringify({ data }), { status: 201, headers: rh })
+      }
+
+      // DELETE — eliminar categoría propia (no sistema)
+      if (method === 'DELETE') {
+        if (!categoryId) {
+          return new Response(JSON.stringify({ code: 'VALIDATION_ERROR', message: 'Category ID required' }), { status: 400, headers: rh })
+        }
+
+        // Verificar que no es del sistema
+        const { data: cat } = await supabase.from('transaction_categories').select('is_system, user_id').eq('id', categoryId).single()
+        if (!cat) return new Response(JSON.stringify({ code: 'NOT_FOUND', message: 'Category not found' }), { status: 404, headers: rh })
+        if (cat.is_system) return new Response(JSON.stringify({ code: 'FORBIDDEN', message: 'System categories cannot be deleted' }), { status: 403, headers: rh })
+        if (cat.user_id !== user.id) return new Response(JSON.stringify({ code: 'FORBIDDEN', message: 'Cannot delete another user category' }), { status: 403, headers: rh })
+
+        // Verificar transacciones asociadas
+        const { count } = await supabase.from('transactions').select('id', { count: 'exact', head: true }).eq('category_id', categoryId)
+        if (count && count > 0) {
+          return new Response(JSON.stringify({ code: 'CONFLICT', message: `Cannot delete: ${count} transaction(s) still use this category.` }), { status: 409, headers: rh })
+        }
+
+        const { error } = await supabase.from('transaction_categories').delete().eq('id', categoryId)
+        if (error) return new Response(JSON.stringify({ code: 'DB_ERROR', message: error.message }), { status: 500, headers: rh })
+        return new Response(JSON.stringify({ message: 'Category deleted' }), { status: 200, headers: rh })
+      }
+    }
+
+    return new Response(JSON.stringify({ code: 'NOT_FOUND', message: 'Use /user-settings/integrations, /user-settings/keywords, /user-settings/contexts, or /user-settings/categories' }), { status: 404, headers: rh })
   } catch (err) {
     console.error('[UserSettings] Error:', err)
     return new Response(JSON.stringify({ code: 'INTERNAL_ERROR', message: 'Unexpected error' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })

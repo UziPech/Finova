@@ -45,11 +45,11 @@ export function useWhatsAppSettings() {
     setSaving(true)
     try {
       const body: Record<string, string> = {
-        whatsapp_phone_number_id: phoneNumberId,
-        whatsapp_verify_token: verifyToken,
+        phone_number_id: phoneNumberId,
+        verify_token: verifyToken,
       }
       if (accessToken && !accessToken.startsWith('•')) {
-        body.whatsapp_access_token = accessToken
+        body.access_token = accessToken
       }
 
       const headers = session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined

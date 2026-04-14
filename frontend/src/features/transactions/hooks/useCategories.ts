@@ -1,23 +1,19 @@
+// features/transactions/hooks/useCategories.ts
+// Store de categorías con soporte para filtros por contexto y dirección
+// Regla 10: tipos desde @backend/_shared/types.ts (NO declarar localmente)
+// Regla 14: JWT manual en Authorization header
+
 import { create } from 'zustand'
 import { supabase } from '@/shared/lib/supabase'
-
-export interface TransactionCategory {
-  id: string
-  user_id: string | null
-  name: string
-  type: 'income' | 'expense' | 'capital'
-  icon: string | null
-  color: string | null
-  is_system: boolean
-  created_at: string
-}
+import { useAuthStore } from '@/features/auth/store'
+import type { TransactionCategory } from '@backend/_shared/types'
 
 interface CategoriesState {
   categories: TransactionCategory[]
   loading: boolean
   error: string | null
   fetched: boolean
-  fetchCategories: (force?: boolean) => Promise<void>
+  fetchCategories: (opts?: { force?: boolean; contextSlug?: string; direction?: string }) => Promise<void>
 }
 
 export const useCategoriesStore = create<CategoriesState>((set, get) => ({
@@ -25,23 +21,39 @@ export const useCategoriesStore = create<CategoriesState>((set, get) => ({
   loading: false,
   error: null,
   fetched: false,
-  fetchCategories: async (force = false) => {
+  fetchCategories: async (opts) => {
     const state = get()
-    if (state.fetched && !force) return // Use cached data if already fetched
+    if (state.fetched && !opts?.force) return
 
     set({ loading: true, error: null })
     try {
-      const { data, error } = await supabase
-        .from('transaction_categories')
-        .select('*')
-        .order('name')
+      const session = useAuthStore.getState().session
+      if (!session?.access_token) throw new Error('No active session')
 
-      if (error) throw error
+      const params = new URLSearchParams()
+      if (opts?.contextSlug) params.append('context_slug', opts.contextSlug)
+      if (opts?.direction) params.append('direction', opts.direction)
 
-      set({ categories: data as TransactionCategory[], fetched: true, loading: false })
-    } catch (err: any) {
-      console.error('[Categories Store] Error fetching categories:', err)
-      set({ error: err.message, loading: false })
+      const qs = params.toString()
+      const { data, error } = await supabase.functions.invoke(
+        `user-settings/categories${qs ? `?${qs}` : ''}`,
+        {
+          method: 'GET',
+          headers: { Authorization: `Bearer ${session.access_token}` },
+        }
+      )
+
+      if (error) throw new Error(error.message || 'Error fetching categories')
+
+      set({
+        categories: (data?.data ?? []) as TransactionCategory[],
+        fetched: true,
+        loading: false,
+      })
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error'
+      console.error('[Categories Store] Error fetching categories:', message)
+      set({ error: message, loading: false })
     }
   },
 }))

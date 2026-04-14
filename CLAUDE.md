@@ -35,6 +35,10 @@ Cada proyecto, negocio o cliente es una unidad con su propio ciclo de inversión
 | **Seguridad Webhook** | ✅ Listo | Verificación HMAC SHA-256 para mensajes de WhatsApp |
 | **Limpieza de código** | ✅ Listo | Archivos huérfanos eliminados y corrección de sintaxis en catches |
 | **Sistema de Préstamos** | ✅ Listo | Edge Function `loans`, componente `DashboardLoans` y soporte para pagos semanales. |
+| **Contextos de Proyecto** | ✅ Listo | Edge Function `user-settings/contexts` CRUD + tabla `venture_contexts` + categorías filtradas por contexto. |
+| **Préstamos V2** | ✅ Listo | Amortización francesa vía RPC, catálogo de instituciones financieras, desglose capital/interés por pago. |
+| **Analytics Engine** | ✅ Listo | Edge Function `analytics`: detección de duplicados, z-score, flujo mensual. Fire-and-forget desde `transactions`. |
+| **VPS (Venture Priority Score)** | ✅ Listo | `shared/lib/vps.ts` — índice compuesto (ROI ponderado + capital + flujo + madurez). Reemplaza ordenamiento por ROI puro. |
 
 ### 🔲 Pendiente
 
@@ -453,6 +457,13 @@ export const ventureHealth = (roi: number): VentureHealth => {
     Un cambio en un Feature (ej. `ventures`) NUNCA debe requerir cambios en otro Feature 
     (ej. `dashboard`) más allá de la actualización de una interfaz en `shared`. Si esto sucede,
     la arquitectura está mal acoplada.
+
+22. **VPS sobre ROI:** El ordenamiento de ventures en toda la app usa Venture Priority Score (`shared/lib/vps.ts`), no ROI puro. El ROI se muestra como dato informativo, pero el ranking se basa en VPS. Nunca persistir VPS en DB.
+23. **Anomalías — Fire-and-forget:** Las transacciones disparan detección de anomalías de forma asíncrona desde `transactions/index.ts`. El usuario NO espera por el análisis. Los resultados se consultan vía `analytics/anomalies`.
+24. **Amortización — RPC first:** Los cálculos de amortización francesa se ejecutan en PostgreSQL vía `calculate_french_amortization()`. El frontend NUNCA calcula tablas de amortización; solo consume los datos devueltos por el backend.
+25. **Categorías — Edge Function over Direct Query:** Las categorías se obtienen vía `user-settings/categories` (Edge Function), NO vía `supabase.from('transaction_categories')` directo. Esto asegura filtrado por `user_id` y contexto en el servidor.
+26. **Formulario de Transacciones — Draft State:** El hook `useTransactionForm` mantiene un `draft` persistente entre pasos. Los componentes `.view.tsx` del formulario SOLO leen el draft y llaman a `updateDraft()`. Prohibido mantener estado de formulario en la vista.
+27. **Anomaly Dismissal — Optimistic Update:** Al descartar una anomalía, actualizar el estado local inmediatamente sin esperar refetch. Recalcular contadores `criticalCount`/`warningCount` localmente.
 ---
 
 ## Comandos
@@ -534,12 +545,26 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 - [x] Actualización de `CLAUDE.md` con reglas de Emojis y Salud.
 - [x] Sincronización de `implementation_plan.md`, `task.md` y `Sugerencias.md`.
 
-### Módulo Préstamos (En curso)
+### Módulo Préstamos
 - [x] Edge Function `loans` básica.
 - [x] Componente `DashboardLoans`.
-- [ ] Soporte para periodicidad semanal.
+- [x] Amortización francesa vía RPC `calculate_french_amortization()`.
+- [x] Catálogo de instituciones financieras (`GET /loans/institutions`).
+- [x] Soporte para periodicidad semanal/quincenal/mensual.
+- [x] Desglose capital/interés por pago (`principal_portion`, `interest_portion`).
 - [ ] Semáforo de riesgo e integración con flujo libre.
 - [ ] Vista Ledger / Timeline.
+
+### Módulo Analytics
+- [x] Edge Function `analytics` (baseline, detect, anomalies, dismiss).
+- [x] Hook `useAnomalies` en `dashboard/hooks/`.
+- [x] Fire-and-forget desde `transactions/index.ts`.
+- [ ] Panel visual de anomalías en Dashboard.
+
+### Módulo VPS
+- [x] `shared/lib/vps.ts` — cálculo del Venture Priority Score.
+- [x] `useVentureStatus` actualizado con ordenamiento VPS.
+- [ ] UI de ranking VPS en Dashboard.
 
 ### Deploy
 - [ ] Variables de entorno configuradas en Vercel
@@ -549,7 +574,9 @@ npx supabase functions deploy <name>  # Despliega Edge Function
 
 ## Próximos pasos (por prioridad)
 
-1. **Storage bucket** — Crear bucket `evidence` en Supabase para evidence_url
-2. **Deploy Vercel** — Configurar env vars + CI/CD
-3. **Hogar (Fase 2)** — UI de gastos compartidos (esquema ya existe)
-4. **Webhooks (Fase 3)** — Mercado Pago + Stripe
+1. **BLOQUE IV — UI V2** — Formulario 3 pasos, VentureCard con VPS, SankeyChart, AnomalyFeed
+2. **Deploy Edge Functions** — `supabase functions deploy` para analytics, loans, user-settings, transactions
+3. **Storage bucket** — Crear bucket `evidence` en Supabase para evidence_url
+4. **Deploy Vercel** — Configurar env vars + CI/CD
+5. **Hogar (Fase 2)** — UI de gastos compartidos (esquema ya existe)
+6. **Webhooks (Fase 3)** — Mercado Pago + Stripe
