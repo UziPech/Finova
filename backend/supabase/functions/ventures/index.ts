@@ -115,7 +115,8 @@ Deno.serve(async (req: Request) => {
       }
       const { data, error } = await supabase.from('ventures').insert({
         user_id: user.id, name: body.name, type: body.type,
-        status: body.status || 'active', invested: body.invested || 0,
+        status: body.status || 'active', mode: body.mode || 'business',
+        invested: body.invested || 0,
         returned: body.returned || 0, currency: body.currency || 'MXN',
         start_date: body.start_date || new Date().toISOString().split('T')[0],
         end_date: body.end_date || null, notes: body.notes || null,

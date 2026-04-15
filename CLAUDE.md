@@ -12,6 +12,8 @@ Finova es una aplicación web personal de gestión financiera para dos usuarios 
 > Finova no te dice en qué gastaste. Te dice si lo que estás construyendo te está dando o costando.
 
 Cada proyecto, negocio o cliente es una unidad con su propio ciclo de inversión y retorno. El sistema interpreta los números — no solo los registra.
+ 
+ ademas esta centrado en cualquier tipo de usuario, no solo empresarios si no en personas que requie
 
 ---
 
